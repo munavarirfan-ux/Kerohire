@@ -1,16 +1,11 @@
-import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAppOrgId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 export default async function DashboardPage() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.organizationId) redirect("/login");
-
-  const orgId = session.user.organizationId;
+  const orgId = await getAppOrgId();
 
   const [rolesCount, candidatesCount, recentInterviews] = await Promise.all([
     prisma.roleProfile.count({ where: { organizationId: orgId } }),

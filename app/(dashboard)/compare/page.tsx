@@ -1,16 +1,11 @@
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getAppOrgId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getRoleFitForCandidate } from "@/lib/scoring-server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CompareClient } from "./CompareClient";
 
 export default async function ComparePage() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.organizationId) redirect("/login");
-
-  const orgId = session.user.organizationId;
+  const orgId = await getAppOrgId();
   const candidates = await prisma.candidate.findMany({
     where: { organizationId: orgId },
     include: { role: true },

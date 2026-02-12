@@ -53,6 +53,23 @@ Converts psychometric assessment results into hiring signals and adds interview 
    - **HR:** hr@kerohire.io / demo123
    - **Hiring Manager:** manager@kerohire.io / demo123
 
+## Production (e.g. Vercel)
+
+Demo login (**admin@kerohire.io** / **demo123**) only works if the **seed has been run against your production database**. Otherwise you’ll see “Invalid email or password”.
+
+**One-time: seed production**
+
+1. Point Prisma at your production DB (e.g. set `DATABASE_URL` to your Vercel Postgres or other production URL).
+2. Apply schema and run the seed:
+
+   ```bash
+   export DATABASE_URL="postgresql://..."   # your production DB URL
+   npx prisma db push                      # or: npx prisma migrate deploy
+   npm run db:seed
+   ```
+
+Use a local shell or a one-off script; do not run the seed from the Vercel build. After this, the demo users (admin@kerohire.io, hr@kerohire.io, manager@kerohire.io) will exist in production and login will work.
+
 ## Design system (Deep Forest)
 
 - **Primary (Dark Spruce):** #1B3022 — headings, sidebar

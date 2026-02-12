@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
-import { authOptions } from "@/lib/auth";
+import { getAppOrgId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import React from "react";
 import { renderToBuffer } from "@react-pdf/renderer";
@@ -10,14 +9,11 @@ export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.organizationId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const orgId = await getAppOrgId();
 
   const { id } = await params;
   const role = await prisma.roleProfile.findFirst({
-    where: { id, organizationId: session.user.organizationId },
+    where: { id, organizationId: orgId },
     include: { traitConfigs: { include: { trait: true } } },
   });
 

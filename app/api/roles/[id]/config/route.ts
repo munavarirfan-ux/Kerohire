@@ -1,20 +1,16 @@
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
-import { authOptions } from "@/lib/auth";
+import { getAppOrgId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.organizationId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const orgId = await getAppOrgId();
 
   const { id: roleId } = await params;
   const role = await prisma.roleProfile.findFirst({
-    where: { id: roleId, organizationId: session.user.organizationId },
+    where: { id: roleId, organizationId: orgId },
   });
   if (!role) {
     return NextResponse.json({ error: "Role not found" }, { status: 404 });

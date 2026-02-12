@@ -1,18 +1,15 @@
 import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { authOptions, getAppOrgId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getRoleFitForCandidate } from "@/lib/scoring-server";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function ApplicantsPage() {
+  const orgId = await getAppOrgId();
   const session = await getServerSession(authOptions);
-  if (!session?.user?.organizationId) redirect("/login");
-
-  const orgId = session.user.organizationId;
   const org = await prisma.organization.findUnique({ where: { id: orgId } });
-  const anonymize = session.user.role === "HR" && (org?.anonymizedScreening ?? false);
+  const anonymize = session?.user?.role === "HR" && (org?.anonymizedScreening ?? false);
 
   const candidates = await prisma.candidate.findMany({
     where: { organizationId: orgId },

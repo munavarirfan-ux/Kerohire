@@ -1,17 +1,14 @@
-import { getServerSession } from "next-auth";
-import { redirect, notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import Link from "next/link";
-import { authOptions } from "@/lib/auth";
+import { getAppOrgId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function JobSettingsPage({ params }: { params: Promise<{ id: string }> }) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.organizationId) redirect("/login");
-
+  const orgId = await getAppOrgId();
   const { id } = await params;
   const job = await prisma.job.findFirst({
-    where: { id, orgId: session.user.organizationId },
+    where: { id, orgId },
     include: { stages: { orderBy: { order: "asc" } }, screeningQuestions: true, interviewKits: true },
   });
 

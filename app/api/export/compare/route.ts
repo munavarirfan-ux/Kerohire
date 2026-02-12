@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
-import { authOptions } from "@/lib/auth";
+import { getAppOrgId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getRoleFitForCandidate } from "@/lib/scoring-server";
 import React from "react";
@@ -8,10 +7,7 @@ import { renderToBuffer } from "@react-pdf/renderer";
 import { CompareSnapshotPDF } from "@/lib/pdf/compareSnapshot";
 
 export async function GET(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.organizationId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const orgId = await getAppOrgId();
 
   const { searchParams } = new URL(req.url);
   const ids = searchParams.get("ids")?.split(",").filter(Boolean) ?? [];
@@ -25,7 +21,7 @@ export async function GET(req: Request) {
   const candidates = await prisma.candidate.findMany({
     where: {
       id: { in: ids },
-      organizationId: session.user.organizationId,
+      organizationId: orgId,
     },
     include: { role: true },
   });

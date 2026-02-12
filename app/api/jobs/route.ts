@@ -1,18 +1,14 @@
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
-import { authOptions } from "@/lib/auth";
+import { getAppOrgId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.organizationId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const appOrgId = await getAppOrgId();
 
   const body = await req.json();
   const { orgId, title, department, location, employmentType, level, salaryMin, salaryMax } = body;
 
-  if (!title || orgId !== session.user.organizationId) {
+  if (!title || orgId !== appOrgId) {
     return NextResponse.json({ error: "Invalid input" }, { status: 400 });
   }
 

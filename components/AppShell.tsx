@@ -61,16 +61,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             })}
           </nav>
           <div className="flex items-center gap-3">
-            <span className="text-xs text-chrome-icon">{session?.user?.organizationName}</span>
-            <span className="text-xs text-slate-400">{session?.user?.email}</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => signOut()}
-              className="text-chrome-icon hover:text-chrome-active"
-            >
-              <LogOut className="h-4 w-4" />
-            </Button>
+            {session?.user ? (
+              <>
+                <span className="text-xs text-chrome-icon">{session.user.organizationName}</span>
+                <span className="text-xs text-slate-400">{session.user.email}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => signOut()}
+                  className="text-chrome-icon hover:text-chrome-active"
+                >
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              </>
+            ) : (
+              <span className="text-xs text-slate-400">Guest</span>
+            )}
           </div>
         </header>
 

@@ -1,11 +1,12 @@
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
-import { authOptions } from "@/lib/auth";
+import { authOptions, getAppOrgId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function PATCH(req: Request) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.organizationId || session.user.role !== "HR") {
+  const orgId = await getAppOrgId();
+  if (session && session.user.role !== "HR") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -13,7 +14,7 @@ export async function PATCH(req: Request) {
   const enabled = !!body.enabled;
 
   await prisma.organization.update({
-    where: { id: session.user.organizationId },
+    where: { id: orgId },
     data: { anonymizedScreening: enabled },
   });
 

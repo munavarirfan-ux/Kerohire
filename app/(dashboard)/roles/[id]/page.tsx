@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { redirect, notFound } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { notFound } from "next/navigation";
+import { getAppOrgId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
@@ -12,12 +11,10 @@ export default async function RoleDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.organizationId) redirect("/login");
-
+  const orgId = await getAppOrgId();
   const { id } = await params;
   const role = await prisma.roleProfile.findUnique({
-    where: { id, organizationId: session.user.organizationId },
+    where: { id, organizationId: orgId },
     include: {
       traitConfigs: { include: { trait: true } },
     },

@@ -1,17 +1,13 @@
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getAppOrgId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 export default async function RolesPage() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.organizationId) redirect("/login");
-
+  const orgId = await getAppOrgId();
   const roles = await prisma.roleProfile.findMany({
-    where: { organizationId: session.user.organizationId },
+    where: { organizationId: orgId },
     include: { traitConfigs: { include: { trait: true } } },
     orderBy: { name: "asc" },
   });

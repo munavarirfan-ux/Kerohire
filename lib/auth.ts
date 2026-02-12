@@ -1,9 +1,19 @@
+import { getServerSession } from "next-auth";
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+
+/** Default org when not logged in (seed org). */
+export const DEFAULT_ORG_ID = "seed-org-1";
+
+/** Use in pages/APIs: orgId when authenticated, or default org when auth is disabled. */
+export async function getAppOrgId(): Promise<string> {
+  const session = await getServerSession(authOptions);
+  return session?.user?.organizationId ?? DEFAULT_ORG_ID;
+}
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET!,

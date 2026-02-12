@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
-import { authOptions } from "@/lib/auth";
+import { getAppOrgId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { summarizeTranscript } from "@/lib/ai/providers";
 
@@ -8,14 +7,11 @@ export async function POST(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.organizationId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const orgId = await getAppOrgId();
 
   const { id } = await params;
   const sessionRecord = await prisma.interviewSession.findFirst({
-    where: { id, orgId: session.user.organizationId },
+    where: { id, orgId },
     include: { transcript: true, candidate: true },
   });
   if (!sessionRecord?.transcript) {
