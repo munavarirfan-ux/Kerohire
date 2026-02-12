@@ -1,9 +1,20 @@
 import NextAuth from "next-auth";
-import { authOptions } from "@/lib/auth";
+import type { NextAuthOptions } from "next-auth";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const handler = NextAuth(authOptions);
+let handler: ReturnType<typeof NextAuth> | null = null;
 
-export { handler as GET, handler as POST };
+function getHandler() {
+  if (!handler) {
+    const { authOptions } = require("@/lib/auth") as { authOptions: NextAuthOptions };
+    handler = NextAuth(authOptions);
+  }
+  return handler;
+}
+
+export const GET = (req: Request, ctx: { params: Promise<{ nextauth: string[] }> }) =>
+  getHandler()(req, ctx as any);
+export const POST = (req: Request, ctx: { params: Promise<{ nextauth: string[] }> }) =>
+  getHandler()(req, ctx as any);
