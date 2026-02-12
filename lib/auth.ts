@@ -11,8 +11,13 @@ export const DEFAULT_ORG_ID = "seed-org-1";
 
 /** Use in pages/APIs: orgId when authenticated, or default org when auth is disabled. */
 export async function getAppOrgId(): Promise<string> {
-  const session = await getServerSession(authOptions);
-  return session?.user?.organizationId ?? DEFAULT_ORG_ID;
+  try {
+    const session = await getServerSession(authOptions);
+    if (session?.user?.organizationId) return session.user.organizationId;
+  } catch {
+    // Auth/session can fail in production (missing env, DB, etc.); fall back to default org
+  }
+  return DEFAULT_ORG_ID;
 }
 
 export const authOptions: NextAuthOptions = {
