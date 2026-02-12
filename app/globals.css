@@ -1,0 +1,34 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --aurora: linear-gradient(90deg, #F7A99F 0%, #D8A7E3 50%, #9DD3F8 100%);
+    --chrome: #B9ACC8;
+    --chrome-active: #7C6A93;
+    --chrome-border: #E9E6EE;
+    --forest: #1B3022;
+    --sage: #D4E09B;
+    --accent: #F2542D;
+    --parchment: #F9F9F7;
+  }
+  body {
+    @apply min-h-screen text-sm text-slate-600 antialiased;
+    background: linear-gradient(90deg, #F7A99F 0%, #D8A7E3 50%, #9DD3F8 100%);
+  }
+  /* Report content uses Deep Forest */
+  .report-content h1, .report-content h2, .report-content h3 {
+    @apply text-forest;
+  }
+  h1 { @apply text-3xl font-semibold; }
+  h2 { @apply text-2xl font-semibold; }
+  h3 { @apply text-xl font-medium; }
+  .text-big-number { @apply text-4xl font-semibold tracking-tight; }
+}
+
+@layer utilities {
+  .transition-subtle {
+    transition-duration: 150ms;
+  }
+}

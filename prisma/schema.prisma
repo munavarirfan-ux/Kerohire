@@ -1,0 +1,397 @@
+// keroHire - HR Psychometric + Interview Intelligence
+// Deep Forest Edition
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// SQLite: enums stored as String (ADMIN|HR|HIRING_MANAGER, etc.)
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  users     User[]
+  candidates Candidate[]
+  jobs      Job[]
+  roles     RoleProfile[]
+  auditEvents AuditEvent[]
+  interviewSessions InterviewSession[]
+  contentSubmissions ContentSubmission[]
+  dataRetentionMonths Int?
+  anonymizedScreening Boolean @default(false)
+}
+
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  passwordHash   String
+  name           String?
+  role           String
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  notes          Note[]
+  auditEvents    AuditEvent[] @relation("AuditActor")
+  accounts       Account[]
+  sessions       Session[]
+  jobMemberships JobUser[]
+  @@index([organizationId])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ---- ATS: Jobs & Pipeline ----
+model Job {
+  id              String   @id @default(cuid())
+  orgId           String
+  organization    Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  title           String
+  department      String?
+  location        String?   // City | Remote | Hybrid
+  employmentType  String?
+  level           String?
+  salaryMin       Float?
+  salaryMax       Float?
+  status          String   @default("DRAFT")
+  roleProfileId   String?   @unique
+  roleProfile     RoleProfile? @relation(fields: [roleProfileId], references: [id], onDelete: SetNull)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  stages          JobStage[]
+  candidates      Candidate[]
+  hiringTeam      JobUser[]
+  screeningQuestions ScreeningQuestion[]
+  interviewKits   InterviewKit[]
+  postContent     JobPostContent?
+  @@index([orgId])
+  @@index([status])
+}
+
+model JobUser {
+  id        String @id @default(cuid())
+  jobId     String
+  job       Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([jobId, userId])
+  @@index([jobId])
+}
+
+model JobStage {
+  id             String   @id @default(cuid())
+  jobId          String
+  job            Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  name           String
+  order          Int      @default(0)
+  slaTargetHours Int?
+  ownerType      String?  // HR | HIRING_MANAGER
+  createdAt      DateTime @default(now())
+  candidates     Candidate[]
+  stageHistory   CandidateStageHistory[]
+  interviewKits  InterviewKit[]
+  @@index([jobId])
+}
+
+model JobPostContent {
+  id                   String   @id @default(cuid())
+  jobId                String   @unique
+  job                  Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  description          String   @default("")
+  responsibilities     String?
+  requirements         String?
+  benefits             String?
+  equalOpportunityNote String?
+  languageRequirement  String?  // DE | EN | DE/EN
+  createdAt            DateTime @default(now())
+}
+
+model ScreeningQuestion {
+  id        String   @id @default(cuid())
+  jobId     String
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  question  String
+  type      String   // YES_NO | MULTIPLE_CHOICE
+  options   String?  // JSON array
+  knockout  Boolean  @default(false)
+  weight    Int      @default(0)  // 0-100
+  order     Int      @default(0)
+  screeningResults ScreeningResult[]
+  @@index([jobId])
+}
+
+model ScreeningResult {
+  id         String   @id @default(cuid())
+  candidateId String
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  questionId  String
+  question    ScreeningQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answer      String?  // pass | fail | value
+  score       Int?
+  createdAt   DateTime @default(now())
+  @@unique([candidateId, questionId])
+  @@index([candidateId])
+}
+
+model InterviewKit {
+  id                String   @id @default(cuid())
+  jobId             String
+  job               Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  jobStageId        String?
+  jobStage          JobStage? @relation(fields: [jobStageId], references: [id], onDelete: SetNull)
+  name              String
+  questionList      String?  // JSON array of { question, type }
+  evaluationRubric  String?
+  scoringGuidelines String?
+  translatedVersions String?  // JSON DE/EN
+  createdAt         DateTime @default(now())
+  @@index([jobId])
+  @@index([jobStageId])
+}
+
+model CandidateStageHistory {
+  id          String   @id @default(cuid())
+  candidateId String
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  stageId     String
+  stage       JobStage @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  movedAt     DateTime @default(now())
+  movedById   String?
+  @@index([candidateId])
+  @@index([stageId])
+}
+
+// ---- Traits & Psychometric ----
+model Trait {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  assessmentResults AssessmentResult[]
+  roleTraitConfigs   RoleTraitConfig[]
+}
+
+model RoleProfile {
+  id             String   @id @default(cuid())
+  name           String
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  job            Job?
+  traitConfigs   RoleTraitConfig[]
+  candidates     Candidate[]
+  interviewSummaries InterviewSummary[]
+  @@index([organizationId])
+}
+
+model RoleTraitConfig {
+  id             String     @id @default(cuid())
+  roleId         String
+  role           RoleProfile @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  traitId        String
+  trait          Trait      @relation(fields: [traitId], references: [id], onDelete: Cascade)
+  weight         Float      // 0-1
+  targetMin      Float      // percentile range
+  targetMax      Float
+  riskBelow      Float?     // percentile - trigger risk if below
+  riskAbove      Float?     // percentile - trigger risk if above
+  @@unique([roleId, traitId])
+  @@index([roleId])
+}
+
+model Candidate {
+  id               String   @id @default(cuid())
+  name             String
+  email            String?
+  phone            String?
+  organizationId   String
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  jobId            String?
+  job              Job?     @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  currentStageId   String?
+  currentStage     JobStage? @relation(fields: [currentStageId], references: [id], onDelete: SetNull)
+  roleId           String?
+  role             RoleProfile? @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  status           String   @default("in_review")
+  atsScore         Float?   // 0-100
+  skillScore       Float?   // 0-100
+  appliedAt        DateTime?
+  createdAt        DateTime @default(now())
+  assessmentResults AssessmentResult[]
+  notes            Note[]
+  interviewSessions InterviewSession[]
+  contentSubmissions ContentSubmission[]
+  stageHistory     CandidateStageHistory[]
+  screeningResults ScreeningResult[]
+  @@index([organizationId])
+  @@index([jobId])
+  @@index([currentStageId])
+  @@index([roleId])
+}
+
+model AssessmentResult {
+  id          String   @id @default(cuid())
+  candidateId String
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  traitId     String
+  trait       Trait    @relation(fields: [traitId], references: [id], onDelete: Cascade)
+  percentile  Float
+  createdAt   DateTime @default(now())
+  @@unique([candidateId, traitId])
+  @@index([candidateId])
+}
+
+model Note {
+  id          String   @id @default(cuid())
+  candidateId String
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  authorId    String
+  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  type        String   // e.g. decision, general, feedback
+  content     String
+  createdAt   DateTime @default(now())
+  translationRecords TranslationRecord[]
+  @@index([candidateId])
+}
+
+model AuditEvent {
+  id         String   @id @default(cuid())
+  orgId      String
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  actorUserId String?
+  actor      User?    @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  action     String
+  entityType String
+  entityId   String?
+  payload    String?  // JSON string
+  createdAt  DateTime @default(now())
+  @@index([orgId])
+  @@index([createdAt])
+}
+
+// Interview Intelligence
+model InterviewSession {
+  id                String   @id @default(cuid())
+  orgId             String
+  organization      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  candidateId       String
+  candidate         Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  title             String
+  interviewType     String?  // ONE_WAY | TECHNICAL | HR
+  sourceType        String   // UPLOAD | LINK
+  status            String   // UPLOADED | TRANSCRIBED | SUMMARIZED
+  languageOriginal  String?  @default("en")
+  languagePreferred String?  @default("en")
+  createdAt         DateTime @default(now())
+  transcript        InterviewTranscript?
+  summary           InterviewSummary?
+  scorecard         InterviewScorecard?
+  translationRecords TranslationRecord[]
+  @@index([orgId])
+  @@index([candidateId])
+  @@index([status])
+}
+
+model InterviewTranscript {
+  id        String   @id @default(cuid())
+  sessionId String   @unique
+  session   InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  text      String
+  segments  String?  // JSON: [{ start, end, text }]
+  createdAt DateTime @default(now())
+}
+
+model InterviewSummary {
+  id           String   @id @default(cuid())
+  sessionId    String   @unique
+  session      InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  summary      String
+  evidence     String?  // JSON
+  mappedTraits String?  // JSON
+  risks        String?  // JSON
+  roleId       String?
+  role         RoleProfile? @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+  translationRecords TranslationRecord[]
+}
+
+model InterviewScorecard {
+  id                    String   @id @default(cuid())
+  sessionId             String   @unique
+  session               InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  overallRecommendation String
+  rubric                String   // JSON per-trait dimension scores
+  interviewerNotes      String?
+  createdAt             DateTime @default(now())
+}
+
+model TranslationRecord {
+  id             String   @id @default(cuid())
+  entityType     String   // e.g. InterviewSummary, Note
+  entityId       String
+  fromLang       String
+  toLang         String
+  translatedText String
+  createdAt      DateTime @default(now())
+  sessionId      String?
+  session        InterviewSession? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  noteId         String?
+  note           Note?    @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  summaryId      String?
+  summary        InterviewSummary? @relation(fields: [summaryId], references: [id], onDelete: Cascade)
+  @@index([entityType, entityId])
+}
+
+model ContentSubmission {
+  id          String   @id @default(cuid())
+  orgId       String
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  candidateId String
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  type        String   // TAKE_HOME | QUESTIONNAIRE | FREE_TEXT
+  text        String
+  createdAt   DateTime @default(now())
+  aiSignals   AiSignal[]
+  @@index([orgId])
+  @@index([candidateId])
+}
+
+model AiSignal {
+  id             String   @id @default(cuid())
+  submissionId   String
+  submission     ContentSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  band           String   // LOW | MED | HIGH
+  score          Float    // 0-1
+  reasons        String   // JSON array of reason strings (signals, not proof)
+  disclaimerShown Boolean @default(false)
+  createdAt      DateTime @default(now())
+  @@index([submissionId])
+}
