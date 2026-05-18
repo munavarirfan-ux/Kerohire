@@ -1,0 +1,410 @@
+@import "react-day-picker/dist/style.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Surfaces & type (RGB triplets for Tailwind opacity modifiers) */
+    --app-bg-rgb: 248 250 252;
+    --surface-rgb: 255 255 255;
+    --border-rgb: 226 232 240;
+    --text-rgb: 24 24 27;
+    --text-secondary-rgb: 113 113 122;
+    --muted-rgb: 161 161 170;
+    --secondary-fill-rgb: 221 239 231;
+
+    /* Brand / intelligence (forest tracks accent 700; overridden by theme) */
+    --forest-rgb: 184 75 31;
+    --sage-rgb: 255 244 238;
+    --ig-900-rgb: 102 42 17;
+    --ig-800-rgb: 199 83 35;
+    --ig-700-rgb: 184 75 31;
+    --ig-600-rgb: 255 107 44;
+
+    /* Accent tonal scale (overridden by theme script + ThemeProvider) */
+    --accent-50-rgb: 255 244 238;
+    --accent-100-rgb: 255 230 217;
+    --accent-200-rgb: 255 201 173;
+    --accent-500-rgb: 255 107 44;
+    --accent-700-rgb: 184 75 31;
+    --accent-900-rgb: 102 42 17;
+    --accent-rgb: var(--accent-500-rgb);
+    --accent-hover-rgb: var(--accent-700-rgb);
+    --accent-ring-rgb: var(--accent-500-rgb);
+    --accent-deep-rgb: var(--accent-900-rgb);
+    --accent-soft-rgb: var(--accent-50-rgb);
+
+    /* Dynamic hero gradient (900 → 700 → 500) */
+    --hero-gradient-from-rgb: 102 42 17;
+    --hero-gradient-via-rgb: 184 75 31;
+    --hero-gradient-to-rgb: 224 92 39;
+    --hero-border-rgb: 120 49 21;
+    --hero-shadow-rgb: 77 32 13;
+    --hero-glow-rgb: 255 201 173;
+    --hero-fg-rgb: 255 255 255;
+
+    --nav-bg-rgb: 15 23 42;
+
+    /* Kanban board — shared min height across hiring workspace tabs */
+    --kanban-board-min-height: clamp(28rem, calc(100dvh - 15.5rem), 36rem);
+
+    /* Legacy single-token aliases used in a few CSS rules */
+    --app-bg: rgb(var(--app-bg-rgb));
+    --surface: rgb(var(--surface-rgb));
+    --border: rgb(var(--border-rgb));
+    --text: rgb(var(--text-rgb));
+    --text-secondary: rgb(var(--text-secondary-rgb));
+    --muted: rgb(var(--muted-rgb));
+    --ig-900: rgb(var(--ig-900-rgb));
+    --ig-800: rgb(var(--ig-800-rgb));
+    --ig-700: rgb(var(--ig-700-rgb));
+    --ig-600: rgb(var(--ig-600-rgb));
+    --forest: rgb(var(--forest-rgb));
+    --sage: rgb(var(--sage-rgb));
+    --accent: rgb(var(--accent-rgb));
+    --parchment: var(--app-bg);
+    --chrome-active: var(--text);
+    --chrome-border: var(--border);
+  }
+
+  .dark {
+    --app-bg-rgb: 16 16 18;
+    --surface-rgb: 30 30 33;
+    --border-rgb: 55 55 60;
+    --text-rgb: 244 244 245;
+    --text-secondary-rgb: 161 161 170;
+    --muted-rgb: 113 113 122;
+    --secondary-fill-rgb: 39 39 42;
+
+    --forest-rgb: 255 201 173;
+    --sage-rgb: 45 62 56;
+
+    --nav-bg-rgb: 2 6 23;
+
+    --app-bg: rgb(var(--app-bg-rgb));
+    --surface: rgb(var(--surface-rgb));
+    --border: rgb(var(--border-rgb));
+    --text: rgb(var(--text-rgb));
+    --text-secondary: rgb(var(--text-secondary-rgb));
+    --muted: rgb(var(--muted-rgb));
+    --ig-900: rgb(var(--ig-900-rgb));
+    --ig-800: rgb(var(--ig-800-rgb));
+    --ig-700: rgb(var(--ig-700-rgb));
+    --ig-600: rgb(var(--ig-600-rgb));
+    --forest: rgb(var(--forest-rgb));
+    --sage: rgb(var(--sage-rgb));
+    --accent: rgb(var(--accent-rgb));
+    --parchment: var(--app-bg);
+    --chrome-active: var(--text);
+    --chrome-border: var(--border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    background-color: transparent;
+    color: rgb(var(--text-rgb));
+  }
+
+  body {
+    @apply min-h-screen min-w-0 antialiased text-text;
+    background-color: transparent;
+    color: inherit;
+    font-size: 14px;
+    line-height: 1.45;
+  }
+
+  h1 {
+    font-size: clamp(1.25rem, 0.9rem + 1.6vw, 2rem);
+    line-height: 1.15;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+  }
+  h2 {
+    font-size: clamp(1.125rem, 0.95rem + 0.9vw, 1.5rem);
+    line-height: 1.2;
+    font-weight: 650;
+    letter-spacing: -0.015em;
+  }
+  h3 {
+    font-size: clamp(1rem, 0.92rem + 0.45vw, 1.25rem);
+    line-height: 1.25;
+    font-weight: 600;
+  }
+}
+
+@layer utilities {
+  .transition-subtle {
+    transition-duration: 180ms;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Kanban — theme-tinted workspace (tracks --accent-*-rgb from appearance) */
+  .kanban-board-shell {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 18px;
+    padding: 0.75rem 1rem;
+    height: var(--kanban-board-min-height);
+    min-height: var(--kanban-board-min-height);
+    border: 1px solid rgb(15 23 42 / 0.05);
+    background-color: rgb(var(--accent-soft-rgb) / 0.55);
+    background-image:
+      radial-gradient(ellipse 120% 85% at 50% -18%, rgb(var(--accent-100-rgb) / 0.72) 0%, transparent 58%),
+      radial-gradient(ellipse 95% 70% at 102% 108%, rgb(var(--accent-200-rgb) / 0.28) 0%, transparent 52%),
+      radial-gradient(ellipse 75% 55% at -4% 96%, rgb(var(--accent-50-rgb) / 0.65) 0%, transparent 50%),
+      linear-gradient(
+        168deg,
+        rgb(var(--accent-100-rgb) / 0.55) 0%,
+        rgb(var(--accent-50-rgb) / 0.42) 38%,
+        rgb(var(--app-bg-rgb) / 0.92) 100%
+      );
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.7),
+      inset 0 -36px 56px -40px rgb(15 23 42 / 0.04);
+  }
+
+  .kanban-board-shell::after {
+    content: "";
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: inset 0 0 72px -28px rgb(15 23 42 / 0.06);
+  }
+
+  .kanban-board-grain {
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    opacity: 0.022;
+    mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .kanban-board-track {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex: 1 1 auto;
+    align-items: stretch;
+    align-self: stretch;
+    gap: 0.75rem;
+    min-height: 0;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+    padding-top: 0.125rem;
+  }
+
+  .kanban-column-shell {
+    display: flex;
+    width: min(100%, 280px);
+    flex-shrink: 0;
+    flex-direction: column;
+    align-self: stretch;
+    min-height: 100%;
+    border-radius: 14px;
+    border: 1px solid rgb(15 23 42 / 0.07);
+    background: rgb(255 255 255 / 0.62);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow:
+      0 1px 2px rgb(15 23 42 / 0.04),
+      0 10px 28px -14px rgb(15 23 42 / 0.08),
+      inset 0 0 0 1px rgb(255 255 255 / 0.55);
+    transition: border-color 180ms ease, background-color 180ms ease, box-shadow 180ms ease;
+  }
+
+  .kanban-column-shell.is-drop-target {
+    border-color: rgb(var(--accent-rgb) / 0.28);
+    background: rgb(var(--accent-soft-rgb) / 0.72);
+    box-shadow:
+      0 0 0 2px rgb(var(--accent-rgb) / 0.12),
+      0 12px 32px -12px rgb(var(--accent-rgb) / 0.14);
+  }
+
+  .kanban-column-header {
+    flex-shrink: 0;
+    border-bottom: 1px solid rgb(15 23 42 / 0.05);
+    background: rgb(255 255 255 / 0.35);
+    padding: 0.625rem 0.75rem;
+  }
+
+  .kanban-column-body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0.5rem;
+  }
+
+  .dark .kanban-board-shell {
+    border-color: rgb(255 255 255 / 0.06);
+    background-color: rgb(var(--accent-900-rgb) / 0.14);
+    background-image:
+      radial-gradient(ellipse 120% 85% at 50% -18%, rgb(var(--accent-700-rgb) / 0.22) 0%, transparent 58%),
+      radial-gradient(ellipse 95% 70% at 102% 108%, rgb(var(--accent-900-rgb) / 0.18) 0%, transparent 52%),
+      linear-gradient(
+        168deg,
+        rgb(var(--accent-900-rgb) / 0.2) 0%,
+        rgb(var(--app-bg-rgb) / 0.98) 48%,
+        rgb(var(--accent-900-rgb) / 0.1) 100%
+      );
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.04),
+      inset 0 -28px 48px -36px rgb(0 0 0 / 0.25);
+  }
+
+  .dark .kanban-board-grain {
+    opacity: 0.035;
+    mix-blend-mode: soft-light;
+  }
+
+  .dark .kanban-column-shell {
+    border-color: rgb(255 255 255 / 0.08);
+    background: rgb(255 255 255 / 0.06);
+    box-shadow:
+      0 10px 28px -14px rgb(0 0 0 / 0.35),
+      inset 0 0 0 1px rgb(255 255 255 / 0.04);
+  }
+
+  .dark .kanban-column-shell.is-drop-target {
+    border-color: rgb(var(--accent-rgb) / 0.32);
+    background: rgb(var(--accent-900-rgb) / 0.28);
+  }
+
+  .dark .kanban-column-header {
+    border-bottom-color: rgb(255 255 255 / 0.06);
+    background: rgb(255 255 255 / 0.03);
+  }
+
+  /* Interview operations kanban — layered glass columns */
+  .interview-kanban-board {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 18px;
+    padding: 0.75rem 1rem;
+    min-height: var(--kanban-board-min-height);
+    border: 1px solid rgb(15 23 42 / 0.06);
+    background-color: rgb(var(--accent-soft-rgb) / 0.45);
+    background-image:
+      radial-gradient(ellipse 100% 80% at 50% -20%, rgb(var(--accent-100-rgb) / 0.85) 0%, transparent 55%),
+      radial-gradient(ellipse 80% 60% at 100% 50%, rgb(var(--accent-200-rgb) / 0.2) 0%, transparent 45%),
+      linear-gradient(
+        165deg,
+        rgb(var(--accent-50-rgb) / 0.5) 0%,
+        rgb(var(--app-bg-rgb) / 0.95) 72%
+      );
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.75),
+      inset 0 -40px 60px -44px rgb(15 23 42 / 0.05);
+  }
+
+  .interview-kanban-board-grain {
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    opacity: 0.02;
+    mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .interview-kanban-track {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex: 1 1 auto;
+    gap: 0.75rem;
+    min-height: 0;
+    overflow-x: auto;
+    padding: 0.125rem 0 0.25rem;
+  }
+
+  .interview-kanban-column {
+    display: flex;
+    width: min(100%, 292px);
+    flex-shrink: 0;
+    flex-direction: column;
+    min-height: 100%;
+    border-radius: 14px;
+    border: 1px solid rgb(15 23 42 / 0.06);
+    background: linear-gradient(
+      180deg,
+      rgb(255 255 255 / 0.72) 0%,
+      rgb(var(--accent-soft-rgb) / 0.35) 100%
+    );
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow:
+      0 1px 2px rgb(15 23 42 / 0.04),
+      0 12px 32px -16px rgb(15 23 42 / 0.1),
+      inset 0 0 0 1px rgb(255 255 255 / 0.5);
+    transition: border-color 200ms ease, box-shadow 200ms ease, background 200ms ease;
+  }
+
+  .interview-kanban-column.is-drop-target {
+    border-color: rgb(var(--accent-rgb) / 0.3);
+    background: linear-gradient(
+      180deg,
+      rgb(var(--accent-soft-rgb) / 0.85) 0%,
+      rgb(var(--accent-100-rgb) / 0.4) 100%
+    );
+    box-shadow:
+      0 0 0 2px rgb(var(--accent-rgb) / 0.14),
+      0 16px 40px -14px rgb(var(--accent-rgb) / 0.18);
+  }
+
+  .interview-kanban-column-header {
+    flex-shrink: 0;
+    border-bottom: 1px solid rgb(15 23 42 / 0.05);
+    background: rgb(255 255 255 / 0.4);
+    padding: 0.625rem 0.75rem;
+  }
+
+  .interview-kanban-column-body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0.5rem;
+  }
+
+  .dark .interview-kanban-board {
+    border-color: rgb(255 255 255 / 0.06);
+    background-color: rgb(var(--accent-900-rgb) / 0.12);
+    background-image:
+      radial-gradient(ellipse 100% 80% at 50% -20%, rgb(var(--accent-700-rgb) / 0.25) 0%, transparent 55%),
+      linear-gradient(165deg, rgb(var(--accent-900-rgb) / 0.18) 0%, rgb(var(--app-bg-rgb) / 0.98) 72%);
+  }
+
+  .dark .interview-kanban-column {
+    border-color: rgb(255 255 255 / 0.07);
+    background: linear-gradient(
+      180deg,
+      rgb(255 255 255 / 0.07) 0%,
+      rgb(var(--accent-900-rgb) / 0.2) 100%
+    );
+    box-shadow:
+      0 12px 32px -16px rgb(0 0 0 / 0.35),
+      inset 0 0 0 1px rgb(255 255 255 / 0.04);
+  }
+
+  .dark .interview-kanban-column.is-drop-target {
+    border-color: rgb(var(--accent-rgb) / 0.35);
+    background: rgb(var(--accent-900-rgb) / 0.32);
+  }
+
+  .dark .interview-kanban-column-header {
+    border-bottom-color: rgb(255 255 255 / 0.06);
+    background: rgb(255 255 255 / 0.03);
+  }
+}

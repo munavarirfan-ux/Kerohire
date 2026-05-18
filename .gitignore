@@ -10,6 +10,8 @@
 # next.js
 /.next/
 /out/
+# Do not put build output under public — it shadows /_next and breaks the app
+/public/_next/
 
 # production
 /build

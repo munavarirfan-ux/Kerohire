@@ -1,96 +1,107 @@
-# keroHire
+# Ze[code]
 
-HR Psychometric + Interview Intelligence SaaS — Deep Forest Edition.
-
-Converts psychometric assessment results into hiring signals and adds interview intelligence: transcription, translation, structured scorecards, AI-content signals (heuristics), and compliance-friendly decision trails.
+Hiring operations, assessments, and interview intelligence — built for **Zessta Software Services**.
 
 ## Tech stack
 
-- Next.js 14 (App Router)
-- TypeScript
-- TailwindCSS
-- shadcn-style UI (custom components)
-- Prisma ORM
-- PostgreSQL
-- NextAuth (Credentials)
-- Seeded demo data
+- **Next.js 14** (App Router) · **TypeScript** · **Tailwind CSS**
+- **Prisma** · SQLite (local) or PostgreSQL (production)
+- **NextAuth** (credentials) · **Recharts** · Radix UI primitives
 
-## Setup
+## Quick start
 
-1. **Install dependencies**
+```bash
+npm install
+cp .env.example .env
+npx prisma db push
+npm run db:seed
+npm run dev
+```
 
-   ```bash
-   npm install
-   ```
+Open [http://localhost:3000](http://localhost:3000).
 
-2. **Environment**
+### Demo sign-in
 
-   Copy `.env.example` to `.env`. Default uses **SQLite** (no PostgreSQL needed):
+| Role | Email | Password |
+|------|-------|----------|
+| Super Admin (preview) | `superadmin@zecode.io` | `demo123` |
+| Admin | `admin@zecode.io` | `demo123` |
+| HR | `hr@zecode.io` | `demo123` |
+| Hiring Manager | `manager@zecode.io` | `demo123` |
 
-   - `DATABASE_URL` — `file:./dev.db` for SQLite (default), or a PostgreSQL URL for production
-   - `NEXTAUTH_URL` — e.g. `http://localhost:3000`
-   - `NEXTAUTH_SECRET` — use `openssl rand -base64 32` in production
-   - `AI_PROVIDER` — `mock` for demo (default)
+Re-run `npm run db:seed` after changing demo emails.
 
-3. **Database (SQLite)**
+## Project structure
 
-   ```bash
-   npx prisma db push
-   npm run db:seed
-   ```
+```
+src/
+├── app/                    # Next.js routes (pages, API, layout)
+├── components/             # Shared UI (ui/, layout/, hiring/, dashboard/)
+├── config/                 # routes.ts, roles.ts, navigationByRole.ts, theme
+├── constants/              # app.ts — branding, storage keys, demo users
+├── context/                # RoleContext (staging role preview)
+├── features/               # Feature-scoped mock data
+│   ├── dashboard/data/
+│   ├── demo/data/
+│   └── hiring/jobs/data/
+├── hooks/
+├── lib/                    # theme, auth, prisma, utilities
+└── types/                  # Shared TypeScript exports
+```
 
-   For PostgreSQL instead, set `DATABASE_URL` to your Postgres URL and run the same commands (or `npx prisma migrate deploy` then `npm run db:seed`).
+**Branding:** Product name **Ze[code]** · Company **Zessta Software Services** (see `src/constants/app.ts`).
 
-4. **Run**
+## Theme system
 
-   ```bash
-   npm run dev
-   ```
+Users control only:
 
-   Open [http://localhost:3000](http://localhost:3000). Sign in with:
+1. **Theme mode** — Light, Dark, or System (`Settings → Appearance`)
+2. **Primary accent** — hex + picker; tonal ramp is computed automatically
 
-   - **Admin:** admin@kerohire.io / demo123
-   - **HR:** hr@kerohire.io / demo123
-   - **Hiring Manager:** manager@kerohire.io / demo123
+The theme engine (`src/lib/theme.ts`) derives buttons, heroes, charts, and nav contrast. Sidebar background and nav text are **not** manually configurable.
 
-## Production (e.g. Vercel)
+Legacy `kerohire.*` localStorage keys are migrated to `zecode.*` on read.
 
-Demo login (**admin@kerohire.io** / **demo123**) only works if the **seed has been run against your production database**. Otherwise you’ll see “Invalid email or password”.
+## Role switcher (staging)
 
-**One-time: seed production**
+Header **View as** toggles frontend-only roles (no API):
 
-1. Point Prisma at your production DB (e.g. set `DATABASE_URL` to your Vercel Postgres or other production URL).
-2. Apply schema and run the seed:
+- Super Admin · Admin · Curator · Interviewer · Evaluator
 
-   ```bash
-   export DATABASE_URL="postgresql://..."   # your production DB URL
-   npx prisma db push                      # or: npx prisma migrate deploy
-   npm run db:seed
-   ```
+Navigation comes from `src/config/navigationByRole.ts` — not hardcoded in the sidebar.
 
-Use a local shell or a one-off script; do not run the seed from the Vercel build. After this, the demo users (admin@kerohire.io, hr@kerohire.io, manager@kerohire.io) will exist in production and login will work.
+## Routes
 
-## Design system (Deep Forest)
+Use `ROUTES` from `src/config/routes.ts` instead of string literals:
 
-- **Primary (Dark Spruce):** #1B3022 — headings, sidebar
-- **Secondary (Sage Leaf):** #D4E09B — soft highlights, selected rows
-- **Accent (Burnt Orange):** #F2542D — primary CTAs only
-- **Background (Parchment):** #F9F9F7 — app canvas
-- Cards: white, shadow-sm, rounded-2xl. Max content width 1200px. Typography: Inter.
+```ts
+import { ROUTES } from "@/config/routes";
+router.push(ROUTES.hiringJobs);
+```
 
-## Main features
+## Hiring module
 
-- **Dashboard** — Active roles, candidates in review, recent interviews
-- **Candidates** — Table (name, role, status, role fit %, risks, confidence); detail view with Role Fit, Strengths, Risks, Trait table, Confidence, Interview Intelligence (transcript/summary/scorecard, EN/DE toggle), Notes, Content submissions + AI signals (with disclaimer)
-- **Roles** — List, detail, edit trait config (weights, target ranges, risk thresholds)
-- **Compare** — Select 2–4 candidates; fit/risk/confidence and top strengths; export PDF
-- **Interviews** — List sessions, filter by status; upload audio; Generate transcript / Generate summary + scorecard / Translate (mock AI provider)
-- **Settings** — Audit log; Data retention (mock); Anonymized screening (HR only)
-- **PDF export** — Candidate report, Comparison snapshot, Role config summary
+- **Jobs dashboard** — `/hiring/jobs`
+- **Job workspace** — `/hiring/jobs/[jobId]` (overview, applicants, pipeline)
+- Mock hiring data — `src/features/hiring/jobs/data/` and `src/lib/hiring/`
 
 ## Scripts
 
-- `npm run dev` — Start dev server
-- `npm run build` — Build for production
-- `npm run db:seed` — Seed demo data
-- `npm run db:studio` — Open Prisma Studio
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Dev server |
+| `npm run dev:clean` | Clear `.next` cache |
+| `npm run build` | Production build |
+| `npm run db:seed` | Seed demo org + users |
+
+## Developer handoff notes
+
+- Prefer **small components** under `src/components/` or feature folders; keep mock data in `src/features/**/data/*.mock.ts`.
+- Add shared types in `src/types/`; feature types stay next to the feature.
+- Avoid new hardcoded route strings — extend `ROUTES`.
+- Comments: use for role-based UI, theme tokens, and hiring workflow logic only.
+- Package name: `zecode` (`package.json`).
+
+## Production
+
+Point `DATABASE_URL` at Postgres, run `npx prisma db push` (or migrate), then `npm run db:seed` once. Do not seed from the Vercel build step.
