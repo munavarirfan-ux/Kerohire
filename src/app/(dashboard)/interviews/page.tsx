@@ -1,32 +1,16 @@
 import { Suspense } from "react";
-import { getAppOrgId } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { InterviewFilters } from "./InterviewFilters";
-import { InterviewList } from "./InterviewList";
+import { InterviewsDirectory } from "@/components/hiring/directories/InterviewsDirectory";
 
-export default async function InterviewsPage() {
-  const orgId = await getAppOrgId();
-  const sessions = await prisma.interviewSession.findMany({
-    where: { orgId },
-    include: { candidate: true },
-    orderBy: { createdAt: "desc" },
-  });
-
+export default function InterviewsPage() {
   return (
-    <div className="space-y-6">
-      <h1>Interviews</h1>
-      <Card>
-        <CardHeader>
-          <CardTitle>Sessions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Suspense fallback={<div className="text-sm text-muted">Loading…</div>}>
-            <InterviewFilters />
-            <InterviewList sessions={sessions} />
-          </Suspense>
-        </CardContent>
-      </Card>
-    </div>
+    <Suspense
+      fallback={
+        <div className="flex min-h-[40vh] items-center justify-center text-[13px] text-[#71717A]">
+          Loading interviews…
+        </div>
+      }
+    >
+      <InterviewsDirectory />
+    </Suspense>
   );
 }

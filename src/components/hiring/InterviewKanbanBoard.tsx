@@ -1,10 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useRole } from "@/context/RoleContext";
 import {
   canManageInterviewRounds,
@@ -14,25 +11,41 @@ import {
   saveInterviewRounds,
   type InterviewRound,
 } from "@/lib/hiring/interviewRounds";
-import type { HiringCandidate } from "@/lib/hiring/types";
+import {
+  buildInterviewListRows,
+  EMPTY_INTERVIEW_LIST_FILTERS,
+  filterInterviewListRows,
+  getInterviewListFilterOptions,
+} from "@/lib/hiring/interviewListData";
+import type { HiringCandidate, HiringJob } from "@/lib/hiring/types";
 import { InterviewKanban } from "./interview-kanban/InterviewKanban";
+import { InterviewRoundsFlow } from "./InterviewRoundsFlow";
+import { DirectoryViewSwitcher } from "./directories/DirectoryViewSwitcher";
+import { InterviewCandidatesListView } from "./interview-kanban/InterviewCandidatesListView";
+import { InterviewListFiltersBar } from "./interview-kanban/InterviewListFiltersBar";
 
 export function InterviewKanbanBoard({
+  job,
   jobId,
   candidates,
   onCardClick,
   onCandidateMoved,
+  onScheduleCandidate,
+  onRequestFeedback,
 }: {
+  job: HiringJob;
   jobId: string;
   candidates: HiringCandidate[];
   onCardClick?: (candidate: HiringCandidate) => void;
   onCandidateMoved?: () => void;
+  onScheduleCandidate?: (candidate: HiringCandidate) => void;
+  onRequestFeedback?: (candidate: HiringCandidate) => void;
 }) {
   const { selectedRole } = useRole();
   const canManage = canManageInterviewRounds(selectedRole);
+  const [view, setView] = useState<"kanban" | "list">("kanban");
+  const [listFilters, setListFilters] = useState(EMPTY_INTERVIEW_LIST_FILTERS);
   const [rounds, setRounds] = useState<InterviewRound[]>(() => getInterviewRounds(jobId));
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newRoundTitle, setNewRoundTitle] = useState("");
 
   useEffect(() => {
     setRounds(getInterviewRounds(jobId));
@@ -47,21 +60,9 @@ export function InterviewKanbanBoard({
     [rounds],
   );
 
-  function handleAddRound() {
-    const title = newRoundTitle.trim();
-    if (!title) {
-      toast.error("Enter a round name");
-      return;
-    }
-    if (rounds.some((r) => r.title.toLowerCase() === title.toLowerCase())) {
-      toast.error("A round with this name already exists");
-      return;
-    }
+  function handleAddRound(title: string) {
     const round = createInterviewRound(title, rounds);
     setRounds((prev) => [...prev, round]);
-    setNewRoundTitle("");
-    setShowAddForm(false);
-    toast.success(`Added ${round.title}`);
   }
 
   function handleDeleteRound(round: InterviewRound) {
@@ -78,106 +79,81 @@ export function InterviewKanbanBoard({
     toast.success(`Removed ${round.title}`);
   }
 
+  const roundPills = useMemo(
+    () =>
+      rounds.map((round) => ({
+        id: round.id,
+        title: round.title,
+        count: candidates.filter((c) => columnResolver(c) === round.id).length,
+      })),
+    [rounds, candidates, columnResolver],
+  );
+
+  const listRows = useMemo(
+    () => buildInterviewListRows(job, candidates, rounds),
+    [job, candidates, rounds],
+  );
+  const filteredListRows = useMemo(
+    () => filterInterviewListRows(listRows, listFilters),
+    [listRows, listFilters],
+  );
+  const listFilterOptions = useMemo(() => getInterviewListFilterOptions(listRows), [listRows]);
+
+  const handleSchedule = onScheduleCandidate ?? onCardClick;
+  const handleFeedback = onRequestFeedback ?? onCardClick;
+
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <DirectoryViewSwitcher
+          value={view}
+          onChange={setView}
+          options={[
+            { value: "kanban", label: "Kanban View", icon: "kanban" },
+            { value: "list", label: "List View", icon: "list" },
+          ]}
+        />
+      </div>
+
       {canManage ? (
-        <div className="rounded-[14px] border border-[rgba(15,23,42,0.06)] bg-white p-4 dark:border-white/[0.06] dark:bg-surface">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-text">Interview rounds</p>
-              <p className="mt-0.5 text-[12px] text-text-secondary/70">
-                Configure rounds for this job&apos;s interview pipeline.
-              </p>
-            </div>
-            {!showAddForm ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 gap-1.5 rounded-[9px] text-[12px]"
-                onClick={() => setShowAddForm(true)}
-              >
-                <Plus className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
-                Add round
-              </Button>
-            ) : null}
-          </div>
-
-          <ul className="mt-3 flex flex-wrap gap-2">
-            {rounds.map((round) => {
-              const count = candidates.filter((c) => columnResolver(c) === round.id).length;
-              return (
-                <li
-                  key={round.id}
-                  className="inline-flex items-center gap-1 rounded-full border border-[rgba(15,23,42,0.08)] bg-[#FAFAFB] py-1 pl-3 pr-1 text-[12px] font-medium text-[#3F3F46] dark:border-white/[0.08] dark:bg-white/[0.04] dark:text-text-secondary"
-                >
-                  <span>{round.title}</span>
-                  <span className="tabular-nums text-[11px] text-muted">({count})</span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 rounded-full text-muted hover:text-destructive"
-                    aria-label={`Delete ${round.title}`}
-                    onClick={() => handleDeleteRound(round)}
-                  >
-                    <Trash2 className="h-3 w-3" strokeWidth={1.5} />
-                  </Button>
-                </li>
-              );
-            })}
-          </ul>
-
-          {showAddForm ? (
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <Input
-                value={newRoundTitle}
-                onChange={(e) => setNewRoundTitle(e.target.value)}
-                placeholder="e.g. Culture fit"
-                className="h-9 max-w-xs rounded-[9px] text-[13px]"
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleAddRound();
-                  }
-                }}
-              />
-              <Button
-                type="button"
-                size="sm"
-                className="h-9 rounded-[9px] bg-forest text-white hover:bg-forest/90"
-                onClick={handleAddRound}
-              >
-                Add
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-9 rounded-[9px]"
-                onClick={() => {
-                  setShowAddForm(false);
-                  setNewRoundTitle("");
-                }}
-              >
-                Cancel
-              </Button>
-            </div>
-          ) : null}
-        </div>
+        <InterviewRoundsFlow
+          rounds={roundPills}
+          onAddRound={handleAddRound}
+          onDeleteRound={(id) => {
+            const round = rounds.find((r) => r.id === id);
+            if (round) handleDeleteRound(round);
+          }}
+        />
       ) : (
         <p className="text-[12px] text-text-secondary/70">
           {rounds.map((r) => r.title).join(" · ")}
         </p>
       )}
 
-      <InterviewKanban
-        rounds={rounds}
-        candidates={candidates}
-        onCardClick={onCardClick}
-        onCandidateMoved={onCandidateMoved}
-      />
+      {view === "kanban" ? (
+        <InterviewKanban
+          rounds={rounds}
+          candidates={candidates}
+          onCardClick={onCardClick}
+          onCandidateMoved={onCandidateMoved}
+        />
+      ) : (
+        <>
+          <InterviewListFiltersBar
+            filters={listFilters}
+            onChange={setListFilters}
+            roundOptions={listFilterOptions.rounds}
+            interviewerOptions={listFilterOptions.interviewers}
+          />
+          <InterviewCandidatesListView
+            rows={filteredListRows}
+            job={job}
+            onOpenReport={(c) => onCardClick?.(c)}
+            onSchedule={(c) => handleSchedule?.(c)}
+            onRequestFeedback={(c) => handleFeedback?.(c)}
+          />
+        </>
+      )}
     </div>
   );
 }

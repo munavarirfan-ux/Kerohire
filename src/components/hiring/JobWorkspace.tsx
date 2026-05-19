@@ -8,6 +8,7 @@ import {
   APPLICANTS_STATS_COLUMNS,
   applicantsStatsColumnId,
   filterCandidatesByStage,
+  hireOffersKanbanColumnId,
   type HiringStageName,
 } from "@/lib/hiring/stages";
 import { AddCandidateDialog } from "./applicants/AddCandidateDialog";
@@ -16,13 +17,19 @@ import { JobApplicantsTab } from "./applicants/JobApplicantsTab";
 import { HiringKanban } from "./HiringKanban";
 import { InterviewKanbanBoard } from "./InterviewKanbanBoard";
 import type { HiringCandidate } from "@/lib/hiring/types";
+import { useRole } from "@/context/RoleContext";
+import { canMoveShortlistedToInterview } from "@/lib/hiring/moveApplicantPermissions";
+import {
+  candidateVisibleToRole,
+  isHiringAdminRole,
+} from "@/lib/hiring/directoryAccess";
 import { hiringCanvas } from "./hiringTokens";
 import { JobWorkspaceHero } from "./workspace/JobWorkspaceHero";
 import { JobWorkspaceOverview } from "./workspace/JobWorkspaceOverview";
 import { getJobWorkspaceMetrics } from "./workspace/jobWorkspaceUtils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-const TABS = [
+const FULL_TABS = [
   { id: "overview", label: "Job overview" },
   { id: "applicants", label: "Applicants" },
   { id: "applicants-stats", label: "Applicants stats" },
@@ -31,13 +38,16 @@ const TABS = [
   { id: "rejected", label: "Rejected" },
 ] as const;
 
-type TabId = (typeof TABS)[number]["id"];
+const INTERVIEW_MODE_TABS = [
+  { id: "interviews", label: "Interviews" },
+  { id: "hired-offers", label: "Hired & offers" },
+  { id: "rejected", label: "Rejected" },
+] as const;
+
+type TabId = (typeof FULL_TABS)[number]["id"];
 
 const OFFER_COLS = [
-  { id: "offer-draft", title: "Offer draft" },
   { id: "offer-sent", title: "Offer sent" },
-  { id: "offer-accepted", title: "Offer accepted" },
-  { id: "offer-declined", title: "Offer declined" },
   { id: "hired", title: "Hired" },
 ];
 
@@ -45,13 +55,23 @@ const REJECTED_COLS = [{ id: "rejected", title: "Rejected" }];
 
 export function JobWorkspace({ job }: { job: HiringJob }) {
   const searchParams = useSearchParams();
-  const [tab, setTab] = useState<TabId>("overview");
+  const isInterviewMode = searchParams.get("mode") === "interview";
+  const visibleTabs = isInterviewMode ? INTERVIEW_MODE_TABS : FULL_TABS;
+  const [tab, setTab] = useState<TabId>(isInterviewMode ? "interviews" : "overview");
   const [highlightCandidateId, setHighlightCandidateId] = useState<string | null>(null);
-  const [candidates, setCandidates] = useState(() => getCandidatesForJob(job.id));
+  const { selectedRole } = useRole();
+  const loadCandidates = useCallback(() => {
+    const all = getCandidatesForJob(job.id);
+    if (!isInterviewMode || isHiringAdminRole(selectedRole)) return all;
+    return all.filter((c) => candidateVisibleToRole(c, selectedRole));
+  }, [job.id, isInterviewMode, selectedRole]);
+
+  const [candidates, setCandidates] = useState<HiringCandidate[]>([]);
   const [kanbanReportCandidate, setKanbanReportCandidate] = useState<HiringCandidate | null>(null);
   const [kanbanReportOpen, setKanbanReportOpen] = useState(false);
   const [addCandidateOpen, setAddCandidateOpen] = useState(false);
   const addCandidateButtonRef = useRef<HTMLButtonElement | null>(null);
+  const showMoveToInterview = canMoveShortlistedToInterview(selectedRole);
 
   const openKanbanReport = useCallback((candidate: HiringCandidate) => {
     setKanbanReportCandidate(candidate);
@@ -59,8 +79,12 @@ export function JobWorkspace({ job }: { job: HiringJob }) {
   }, []);
 
   const refreshCandidates = useCallback(() => {
-    setCandidates(getCandidatesForJob(job.id));
-  }, [job.id]);
+    setCandidates(loadCandidates());
+  }, [loadCandidates]);
+
+  useEffect(() => {
+    setCandidates(loadCandidates());
+  }, [loadCandidates]);
 
   const metrics = useMemo(() => getJobWorkspaceMetrics(job, candidates), [job, candidates]);
 
@@ -77,17 +101,23 @@ export function JobWorkspace({ job }: { job: HiringJob }) {
   useEffect(() => {
     const tabParam = searchParams.get("tab");
     const candidateParam = searchParams.get("candidate");
-    if (tabParam === "screening") {
+    if (isInterviewMode) {
+      if (tabParam && INTERVIEW_MODE_TABS.some((t) => t.id === tabParam)) {
+        setTab(tabParam as TabId);
+      } else {
+        setTab("interviews");
+      }
+    } else if (tabParam === "screening") {
       setTab("applicants-stats");
     } else if (tabParam === "offers") {
       setTab("hired-offers");
-    } else if (tabParam && TABS.some((t) => t.id === tabParam)) {
+    } else if (tabParam && FULL_TABS.some((t) => t.id === tabParam)) {
       setTab(tabParam as TabId);
     }
     if (candidateParam) {
       setHighlightCandidateId(candidateParam);
     }
-  }, [searchParams]);
+  }, [searchParams, isInterviewMode]);
 
   return (
     <div className={hiringCanvas}>
@@ -103,7 +133,7 @@ export function JobWorkspace({ job }: { job: HiringJob }) {
         <Tabs value={tab} onValueChange={(v) => setTab(v as TabId)} className="min-w-0">
           <div className="sticky top-0 z-10 -mx-0.5 bg-[#F8FAFC]/90 px-0.5 pb-0 pt-1 backdrop-blur-md dark:bg-app-bg/90">
             <TabsList>
-              {TABS.map((t) => (
+              {visibleTabs.map((t) => (
                 <TabsTrigger key={t.id} value={t.id}>
                   {t.label}
                 </TabsTrigger>
@@ -111,10 +141,13 @@ export function JobWorkspace({ job }: { job: HiringJob }) {
             </TabsList>
           </div>
 
-          <TabsContent value="overview" className="mt-6 focus-visible:ring-0 data-[state=inactive]:hidden">
-            <JobWorkspaceOverview job={job} candidates={candidates} />
-          </TabsContent>
+          {!isInterviewMode ? (
+            <TabsContent value="overview" className="mt-6 focus-visible:ring-0 data-[state=inactive]:hidden">
+              <JobWorkspaceOverview job={job} candidates={candidates} />
+            </TabsContent>
+          ) : null}
 
+          {!isInterviewMode ? (
           <TabsContent value="applicants" className="mt-5 focus-visible:ring-0 data-[state=inactive]:hidden">
             <JobApplicantsTab
               job={job}
@@ -125,7 +158,9 @@ export function JobWorkspace({ job }: { job: HiringJob }) {
               onOpenCandidateHandled={() => setHighlightCandidateId(null)}
             />
           </TabsContent>
+          ) : null}
 
+          {!isInterviewMode ? (
           <TabsContent value="applicants-stats" className="mt-5 focus-visible:ring-0 data-[state=inactive]:hidden">
             <div className="mb-4">
               <p className="text-[13px] text-[#71717A]">
@@ -143,17 +178,25 @@ export function JobWorkspace({ job }: { job: HiringJob }) {
               candidates={screeningCandidates}
               pipelineStage="Screening"
               columnResolver={applicantsStatsColumnId}
+              jobId={job.id}
+              showMoveToInterview={showMoveToInterview}
               onCardClick={openKanbanReport}
               onCandidateMoved={refreshCandidates}
             />
           </TabsContent>
+          ) : null}
 
           <TabsContent value="interviews" className="mt-5 focus-visible:ring-0 data-[state=inactive]:hidden">
             <InterviewKanbanBoard
+              job={job}
               jobId={job.id}
               candidates={interviewCandidates}
               onCardClick={openKanbanReport}
               onCandidateMoved={refreshCandidates}
+              onScheduleCandidate={(c) => {
+                setKanbanReportCandidate(c);
+                setKanbanReportOpen(true);
+              }}
             />
           </TabsContent>
 
@@ -162,6 +205,7 @@ export function JobWorkspace({ job }: { job: HiringJob }) {
               columns={OFFER_COLS}
               candidates={hiredCandidates}
               pipelineStage="Hired & Offers"
+              columnResolver={hireOffersKanbanColumnId}
               onCardClick={openKanbanReport}
               onCandidateMoved={refreshCandidates}
             />

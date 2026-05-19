@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { JOB_FORM_STEPS } from "@/lib/hiring/jobFormSteps";
 
 const SUBTITLE =
-  "Configure role details, visibility, and application fields for this position.";
+  "Configure role details, interview pipeline, and application fields for this position.";
 
 export function JobFormWizardHeader({
   currentStepIndex,

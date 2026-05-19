@@ -5,6 +5,7 @@ import {
 } from "./scheduleInterview";
 import { DEFAULT_HIRING_STAGES } from "./types";
 import { buildStaffDesignerApplicants } from "./staffDesignerApplicants";
+import { mergePersistedJobs } from "./persistedJobs";
 import {
   enrichCandidate,
   getCandidateStage,
@@ -696,13 +697,22 @@ export function getHiringOverviewStats(jobs: HiringJob[]): HiringOverviewStats {
   const candidatesInPipeline = active.reduce((sum, j) => sum + j.candidateCount, 0);
   const interviewsToday = active.reduce((sum, j) => sum + j.interviewsToday, 0);
   const offersPending = HIRING_CANDIDATES.filter(
-    (c) => jobs.some((j) => j.id === c.jobId) && (c.kanbanColumn === "offer-sent" || c.kanbanColumn === "offer-draft"),
+    (c) =>
+      jobs.some((j) => j.id === c.jobId) &&
+      c.kanbanColumn !== "hired" &&
+      (c.kanbanColumn === "offer-sent" ||
+        c.kanbanColumn === "offer-draft" ||
+        c.kanbanColumn === "offer-accepted" ||
+        c.currentStage === "Hire & Offers"),
   ).length;
   const candidatesThisWeek = active.reduce((sum, j) => sum + j.candidatesThisWeek, 0);
   const jobsWithWeeklyActivity = active.filter((j) => j.candidatesThisWeek > 0).length;
   const interviewingInProgress = active.reduce((sum, j) => sum + j.interviewingCount, 0);
   const offersAwaitingApproval = HIRING_CANDIDATES.filter(
-    (c) => jobs.some((j) => j.id === c.jobId) && c.kanbanColumn === "offer-draft",
+    (c) =>
+      jobs.some((j) => j.id === c.jobId) &&
+      c.kanbanColumn !== "hired" &&
+      c.kanbanColumn === "offer-draft",
   ).length;
   const newApplicationsToday = active.reduce(
     (sum, j) => sum + Math.min(j.candidatesThisWeek, Math.max(1, Math.round(j.candidatesThisWeek / 7))),
@@ -743,7 +753,11 @@ export function getHiringOverviewStats(jobs: HiringJob[]): HiringOverviewStats {
 }
 
 export function getJobById(id: string): HiringJob | undefined {
-  return HIRING_JOBS.find((j) => j.id === id);
+  return getAllJobs().find((j) => j.id === id);
+}
+
+export function getAllJobs(): HiringJob[] {
+  return mergePersistedJobs(HIRING_JOBS);
 }
 
 export function getCandidatesForJob(jobId: string): HiringCandidate[] {
@@ -763,8 +777,35 @@ export type MoveApplicantResult =
   | { ok: true; candidate: HiringCandidate; fromJobTitle: string; toJobTitle: string }
   | { ok: false; error: string };
 
+function formatTimelineAt(): string {
+  return new Date().toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+export function prependCandidateTimeline(candidateId: string, label: string, detail: string): void {
+  const candidate = HIRING_CANDIDATES.find((c) => c.id === candidateId);
+  if (!candidate) return;
+  candidate.timeline = [
+    {
+      id: `t-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      label,
+      detail,
+      at: formatTimelineAt(),
+    },
+    ...candidate.timeline,
+  ];
+}
+
 /** Move applicant to another job — updates in-memory mock store */
-export function moveApplicantToJob(candidateId: string, toJobId: string): MoveApplicantResult {
+export function moveApplicantToJob(
+  candidateId: string,
+  toJobId: string,
+  options?: { detailOverride?: string },
+): MoveApplicantResult {
   const candidate = HIRING_CANDIDATES.find((c) => c.id === candidateId);
   if (!candidate) return { ok: false, error: "Applicant not found" };
 
@@ -784,8 +825,10 @@ export function moveApplicantToJob(candidateId: string, toJobId: string): MoveAp
     {
       id: `t-move-${Date.now()}`,
       label: "Applicant moved",
-      detail: `Applicant moved from ${fromTitle} to ${toTitle}`,
-      at: "May 15, 14:30",
+      detail:
+        options?.detailOverride ??
+        `Applicant moved from ${fromTitle} to ${toTitle}`,
+      at: formatTimelineAt(),
     },
     ...candidate.timeline,
   ];
@@ -837,6 +880,43 @@ export function moveCandidateToStage(
     candidate: enrichCandidate(candidate),
     fromStage,
     toStage,
+  };
+}
+
+/** Advance a shortlisted screening candidate into a specific interview round */
+export function moveCandidateToInterview(
+  candidateId: string,
+  jobId: string,
+  round: { id: string; title: string },
+): MoveStageResult {
+  const candidate = HIRING_CANDIDATES.find((c) => c.id === candidateId);
+  if (!candidate) return { ok: false, error: "Candidate not found" };
+
+  const enriched = enrichCandidate(candidate);
+  const fromStage = getCandidateStage(enriched);
+  const fromSubstage =
+    enriched.currentSubstage === "Shortlisted" ? "Shortlisted" : enriched.currentSubstage || "Shortlisted";
+
+  candidate.stage = "Interviews";
+  candidate.currentStage = "Interviews";
+  candidate.currentSubstage = round.title;
+  candidate.kanbanColumn = round.id;
+
+  candidate.timeline = [
+    {
+      id: `t-to-interview-${Date.now()}`,
+      label: "Moved to interview",
+      detail: `Candidate moved from Screening / ${fromSubstage} to Interviews / ${round.title}`,
+      at: formatTimelineAt(),
+    },
+    ...candidate.timeline,
+  ];
+
+  return {
+    ok: true,
+    candidate: enrichCandidate(candidate),
+    fromStage,
+    toStage: "Interviews",
   };
 }
 

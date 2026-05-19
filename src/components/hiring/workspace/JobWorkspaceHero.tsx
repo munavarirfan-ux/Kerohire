@@ -16,7 +16,6 @@ import {
   Share2,
   Users,
   XCircle,
-  type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,12 +27,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import type { HiringCandidate, HiringJob } from "@/lib/hiring/types";
-import {
-  hiringHeroGlassKpi,
-  hiringHeroRadialOverlay,
-  hiringHeroShell,
-  hiringTransition,
-} from "../hiringTokens";
+import { hiringHeroRadialOverlay, hiringHeroShell, hiringTransition } from "../hiringTokens";
+import { HeroMetricsCollapsible } from "../HeroMetricsCollapsible";
+import { HiringHeroGlassKpiCard } from "../HiringHeroGlassKpiCard";
 import { HiringHeroTexture } from "../HiringHeroTexture";
 import type { JobWorkspaceMetrics } from "./jobWorkspaceUtils";
 import { getActiveHiringStage } from "./jobWorkspaceUtils";
@@ -53,53 +49,6 @@ const menuItemClass = cn(
   "outline-none transition-colors duration-150 ease-out",
   "focus:bg-[rgba(15,23,42,0.04)] data-[highlighted]:bg-[rgba(15,23,42,0.04)]",
 );
-
-function Sparkline({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 40 14" className={cn("h-3.5 w-10 shrink-0 text-white/40", className)} aria-hidden>
-      <polyline
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        points="0,11 6,9 12,10 18,6 24,7 30,4 40,5"
-      />
-    </svg>
-  );
-}
-
-function HeroGlassKpiCard({
-  label,
-  value,
-  subtitle,
-  icon: Icon,
-}: {
-  label: string;
-  value: number;
-  subtitle: string;
-  icon: LucideIcon;
-}) {
-  return (
-    <li className={cn(hiringHeroGlassKpi, "min-h-[112px] !rounded-[16px] !p-3 sm:!p-3.5")}>
-      <div
-        className="pointer-events-none absolute -right-5 -top-5 h-16 w-16 rounded-full bg-white/[0.06] blur-2xl opacity-60 transition-opacity duration-[180ms] ease-out group-hover/kpi:opacity-100"
-        aria-hidden
-      />
-      <div className="relative flex items-start justify-between gap-2">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border border-white/[0.16] bg-white/[0.1] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
-          <Icon className="h-4 w-4 text-white/90" strokeWidth={1.5} aria-hidden />
-        </div>
-        <Sparkline />
-      </div>
-      <p className="relative mt-3 text-[1.75rem] font-semibold tabular-nums leading-none tracking-[-0.04em] text-white">
-        {String(value).padStart(2, "0")}
-      </p>
-      <p className="relative mt-2 text-[11px] font-semibold tracking-[-0.01em] text-white/90">{label}</p>
-      <p className="relative mt-0.5 text-[10px] leading-snug text-white/55">{subtitle}</p>
-    </li>
-  );
-}
 
 export function JobWorkspaceHero({
   job,
@@ -272,17 +221,22 @@ export function JobWorkspaceHero({
           </div>
         </div>
 
-        <ul className="grid grid-cols-2 gap-2.5 border-t border-white/[0.1] pt-4 sm:grid-cols-3 sm:gap-3 lg:grid-cols-5">
+        <HeroMetricsCollapsible
+          id="job-workspace-hero-metrics"
+          gridClassName="grid grid-cols-1 gap-2.5 pt-3 sm:grid-cols-2 sm:gap-3 lg:grid-cols-5"
+        >
           {kpis.map((k) => (
-            <HeroGlassKpiCard
+            <HiringHeroGlassKpiCard
               key={k.label}
               label={k.label}
               value={k.value}
               subtitle={k.subtitle}
               icon={k.icon}
+              compact
+              padValue
             />
           ))}
-        </ul>
+        </HeroMetricsCollapsible>
       </div>
     </section>
   );

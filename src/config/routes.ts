@@ -6,6 +6,7 @@ export const ROUTES = {
   hiringJobs: "/hiring/jobs",
   hiringJobNew: "/hiring/jobs/new",
   hiringJob: (jobId: string) => `/hiring/jobs/${jobId}`,
+  hiringJobInterview: (jobId: string) => `/hiring/jobs/${jobId}?mode=interview&tab=interviews`,
   jobs: "/jobs",
   job: (id: string) => `/jobs/${id}`,
   jobPipeline: (id: string) => `/jobs/${id}/pipeline`,

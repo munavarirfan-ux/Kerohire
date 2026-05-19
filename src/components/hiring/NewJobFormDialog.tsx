@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ChevronLeft, Loader2, X } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,13 +15,17 @@ import {
   DialogPortal,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ROUTES } from "@/config/routes";
+import { createHiringJob } from "@/lib/hiring/createHiringJob";
+import { createDefaultHiringStages, type JobHiringStageConfig } from "@/lib/hiring/jobHiringStages";
 import { CUSTOM_FIELD_DEFS, DEPARTMENTS, LOCATIONS } from "@/lib/hiring/mockData";
 import { JOB_FORM_STEPS, isJobFormStepValid } from "@/lib/hiring/jobFormSteps";
-import type { CustomFieldDef, JobVisibility } from "@/lib/hiring/types";
+import type { CustomFieldDef } from "@/lib/hiring/types";
 import { cn } from "@/lib/utils";
 import { dashboardCanvas } from "@/components/dashboard/dashboardTokens";
 import { JobFormStepContent, type JobAdditionalDetails, type JobBasicDetails } from "./JobFormStepContent";
 import { JobFormStepCard, JobFormWizardHeader } from "./JobFormStepper";
+import { JobHiringStagesStep } from "./JobHiringStagesStep";
 
 const footerBtnBase =
   "inline-flex h-11 min-h-[44px] items-center justify-center rounded-[11px] px-5 text-[14px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50";
@@ -56,40 +62,64 @@ export function NewJobFormDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreated?: () => void;
+  onCreated?: (jobId: string) => void;
   returnFocusRef?: React.RefObject<HTMLElement | null>;
 }) {
+  const router = useRouter();
   const [stepIndex, setStepIndex] = useState(0);
   const [showTitleError, setShowTitleError] = useState(false);
+  const [publishing, setPublishing] = useState(false);
   const [customFieldCatalog, setCustomFieldCatalog] = useState<CustomFieldDef[]>(() => [
     ...CUSTOM_FIELD_DEFS,
   ]);
   const [selectedCustomFieldIds, setSelectedCustomFieldIds] = useState<string[]>([]);
   const [basic, setBasic] = useState<JobBasicDetails>(INITIAL_BASIC);
   const [additional, setAdditional] = useState<JobAdditionalDetails>(INITIAL_ADDITIONAL);
+  const [hiringStages, setHiringStages] = useState<JobHiringStageConfig[]>(() =>
+    createDefaultHiringStages(),
+  );
 
   useEffect(() => {
     if (!open) return;
     setStepIndex(0);
     setShowTitleError(false);
+    setPublishing(false);
     setCustomFieldCatalog([...CUSTOM_FIELD_DEFS]);
     setSelectedCustomFieldIds([]);
     setBasic({ ...INITIAL_BASIC, department: DEPARTMENTS[0], location: LOCATIONS[0] });
     setAdditional({ ...INITIAL_ADDITIONAL });
+    setHiringStages(createDefaultHiringStages());
   }, [open]);
 
   const isLastStep = stepIndex === JOB_FORM_STEPS.length - 1;
-  const isStepValid = isJobFormStepValid(stepIndex, basic);
+  const isStepValid = isJobFormStepValid(stepIndex, basic, hiringStages);
   const maxReachableStepIndex = useMemo(() => {
     let max = 0;
     for (let i = 0; i < JOB_FORM_STEPS.length; i++) {
-      if (isJobFormStepValid(i, basic)) max = i;
+      if (isJobFormStepValid(i, basic, hiringStages)) max = i;
       else break;
     }
     return max;
-  }, [basic]);
+  }, [basic, hiringStages]);
 
   const titleError = showTitleError && !basic.title.trim() ? "Job title is required" : undefined;
+  const currentStepKey = JOB_FORM_STEPS[stepIndex]?.key;
+
+  async function publishJob() {
+    if (!isJobFormStepValid(stepIndex, basic, hiringStages)) return;
+    setPublishing(true);
+    try {
+      await new Promise((r) => setTimeout(r, 480));
+      const job = createHiringJob({ basic, additional, hiringStages });
+      toast.success("Job published successfully");
+      onCreated?.(job.id);
+      onOpenChange(false);
+      router.push(`${ROUTES.hiringJob(job.id)}?published=1`);
+    } catch {
+      toast.error("Could not publish job. Please try again.");
+      setPublishing(false);
+    }
+  }
 
   function goNext() {
     if (!isStepValid) {
@@ -97,8 +127,7 @@ export function NewJobFormDialog({
       return;
     }
     if (isLastStep) {
-      onCreated?.();
-      onOpenChange(false);
+      void publishJob();
       return;
     }
     setStepIndex((i) => Math.min(i + 1, JOB_FORM_STEPS.length - 1));
@@ -118,7 +147,12 @@ export function NewJobFormDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!publishing) onOpenChange(next);
+      }}
+    >
       <DialogPortal>
         <DialogOverlay className="z-[230] bg-[rgba(15,23,42,0.4)] backdrop-blur-[4px]" />
         <div
@@ -148,6 +182,7 @@ export function NewJobFormDialog({
               <Button
                 type="button"
                 variant="ghost"
+                disabled={publishing}
                 className={cn(
                   "absolute right-3 top-3 z-20 h-11 w-11 min-h-[44px] min-w-[44px] rounded-[10px] focus-visible:ring-offset-2 sm:right-5 sm:top-5",
                   dialogCloseButtonClass,
@@ -159,12 +194,24 @@ export function NewJobFormDialog({
             </DialogClose>
 
             <DialogDescription className="sr-only">
-              Add New Job — configure basic details, additional details, and custom application fields.
+              Add New Job — configure basic details, additional details, custom fields, and hiring
+              stages.
             </DialogDescription>
+
+            {publishing ? (
+              <div className="flex min-h-[320px] flex-col items-center justify-center gap-4 px-8 py-16">
+                <Loader2 className="h-8 w-8 animate-spin text-forest" aria-hidden />
+                <p className="text-[15px] font-medium text-[#18181B]">Publishing your job…</p>
+                <p className="text-[13px] text-[#71717A]">Setting up pipeline and workspace</p>
+              </div>
+            ) : null}
 
             <form
               noValidate
-              className="flex min-h-0 flex-1 flex-col overflow-hidden"
+              className={cn(
+                "flex min-h-0 flex-1 flex-col overflow-hidden",
+                publishing && "pointer-events-none invisible absolute inset-0",
+              )}
               onSubmit={(e) => {
                 e.preventDefault();
                 goNext();
@@ -179,25 +226,31 @@ export function NewJobFormDialog({
 
               <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 sm:px-6">
                 <div className="mx-auto w-full max-w-[900px] pb-4">
-                  <JobFormStepCard stepIndex={stepIndex}>
-                    <JobFormStepContent
-                      stepIndex={stepIndex}
-                      basic={basic}
-                      onBasicChange={(next) => {
-                        setBasic(next);
-                        if (next.title.trim()) setShowTitleError(false);
-                      }}
-                      additional={additional}
-                      onAdditionalChange={setAdditional}
-                      customFieldCatalog={customFieldCatalog}
-                      selectedCustomFieldIds={selectedCustomFieldIds}
-                      onSelectedCustomFieldIdsChange={setSelectedCustomFieldIds}
-                      onAddCustomField={handleAddCustomField}
-                      onRemoveCustomField={handleRemoveCustomField}
-                      builtinCustomFieldIds={BUILTIN_CUSTOM_FIELD_IDS}
-                      titleError={titleError}
-                    />
-                  </JobFormStepCard>
+                  {currentStepKey === "hiring-stages" ? (
+                    <div className="mx-auto w-full max-w-[640px] pt-2 sm:pt-4">
+                      <JobHiringStagesStep stages={hiringStages} onChange={setHiringStages} />
+                    </div>
+                  ) : (
+                    <JobFormStepCard stepIndex={stepIndex}>
+                      <JobFormStepContent
+                        stepIndex={stepIndex}
+                        basic={basic}
+                        onBasicChange={(next) => {
+                          setBasic(next);
+                          if (next.title.trim()) setShowTitleError(false);
+                        }}
+                        additional={additional}
+                        onAdditionalChange={setAdditional}
+                        customFieldCatalog={customFieldCatalog}
+                        selectedCustomFieldIds={selectedCustomFieldIds}
+                        onSelectedCustomFieldIdsChange={setSelectedCustomFieldIds}
+                        onAddCustomField={handleAddCustomField}
+                        onRemoveCustomField={handleRemoveCustomField}
+                        builtinCustomFieldIds={BUILTIN_CUSTOM_FIELD_IDS}
+                        titleError={titleError}
+                      />
+                    </JobFormStepCard>
+                  )}
                 </div>
               </div>
 
@@ -242,11 +295,13 @@ export function NewJobFormDialog({
                     type="submit"
                     className={cn(
                       footerBtnBase,
-                      "min-w-[7.5rem] bg-forest text-white hover:bg-forest/90 focus-visible:ring-forest/30",
+                      isLastStep
+                        ? "min-w-[9rem] bg-accent text-white hover:bg-[rgb(var(--accent-hover-rgb))] focus-visible:ring-accent/30"
+                        : "min-w-[7.5rem] bg-forest text-white hover:bg-forest/90 focus-visible:ring-forest/30",
                     )}
-                    disabled={!isStepValid}
+                    disabled={!isStepValid || publishing}
                   >
-                    {isLastStep ? "Create job" : "Next"}
+                    {isLastStep ? "Publish Job" : "Next"}
                   </Button>
                 </div>
               </footer>

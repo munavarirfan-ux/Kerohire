@@ -270,7 +270,7 @@ export function ApplicantRowCard({
               {stage !== "Hired & Offers" ? (
                 <DropdownMenuItem
                   className={menuItemClass}
-                  onSelect={() => moveTo("Hired & Offers", "Offer Draft")}
+                  onSelect={() => moveTo("Hired & Offers", "Offer Sent")}
                 >
                   <ArrowRight className="h-3.5 w-3.5 opacity-55" strokeWidth={1.5} />
                   Move to Hired & Offers

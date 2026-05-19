@@ -242,8 +242,9 @@ export function JobFormStepContent({
     );
   }
 
-  return (
-    <JobCustomFieldsStep
+  if (stepIndex === 2) {
+    return (
+      <JobCustomFieldsStep
       catalog={customFieldCatalog}
       selectedIds={selectedCustomFieldIds}
       onSelectedIdsChange={onSelectedCustomFieldIdsChange}
@@ -251,5 +252,8 @@ export function JobFormStepContent({
       onRemoveCustomField={onRemoveCustomField}
       builtinFieldIds={builtinCustomFieldIds}
     />
-  );
+    );
+  }
+
+  return null;
 }

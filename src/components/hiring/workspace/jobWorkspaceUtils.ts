@@ -18,7 +18,7 @@ const INTERVIEW_COLUMNS = new Set([
   "system-design",
 ]);
 
-const OFFER_COLUMNS = new Set(["offer-draft", "offer-sent", "offer-accepted"]);
+const OFFER_COLUMNS = new Set(["offer-draft", "offer-sent", "offer-accepted", "offer-declined"]);
 
 export type JobWorkspaceMetrics = {
   totalApplicants: number;

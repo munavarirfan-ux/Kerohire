@@ -3,12 +3,15 @@
 import { useCallback, useRef, useState } from "react";
 import { GripVertical } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { moveCandidateToStage } from "@/lib/hiring/mockData";
 import {
   getCandidateStage,
+  isApplicantsStatsShortlisted,
   substageForKanbanColumn,
   type HiringStageName,
 } from "@/lib/hiring/stages";
+import { MoveToInterviewDialog } from "./applicants/MoveToInterviewDialog";
 import { cn } from "@/lib/utils";
 import type { HiringCandidate } from "@/lib/hiring/types";
 import { KanbanMoveConfirmDialog } from "./KanbanMoveConfirmDialog";
@@ -47,6 +50,8 @@ export function HiringKanban({
   onCardClick,
   onCandidateMoved,
   enableDragDrop = true,
+  jobId,
+  showMoveToInterview = false,
 }: {
   columns: KanbanColumnDef[];
   candidates: HiringCandidate[];
@@ -57,6 +62,8 @@ export function HiringKanban({
   onCardClick?: (candidate: HiringCandidate) => void;
   onCandidateMoved?: () => void;
   enableDragDrop?: boolean;
+  jobId?: string;
+  showMoveToInterview?: boolean;
 }) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
@@ -66,8 +73,12 @@ export function HiringKanban({
     toColumn: KanbanColumnDef;
   } | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [moveToInterviewCandidate, setMoveToInterviewCandidate] = useState<HiringCandidate | null>(
+    null,
+  );
 
   const canDrag = enableDragDrop && columns.length > 1;
+  const canShowMoveToInterview = showMoveToInterview && Boolean(jobId);
 
   const requestMove = useCallback(
     (candidate: HiringCandidate, toColumn: KanbanColumnDef) => {
@@ -163,6 +174,10 @@ export function HiringKanban({
                         setDropTargetId(null);
                       }}
                       onClick={() => onCardClick?.(c)}
+                      showMoveToInterview={
+                        canShowMoveToInterview && isApplicantsStatsShortlisted(c)
+                      }
+                      onMoveToInterview={() => setMoveToInterviewCandidate(c)}
                     />
                   ))
                 )}
@@ -183,6 +198,18 @@ export function HiringKanban({
         onConfirm={confirmMove}
         confirming={confirming}
       />
+
+      {jobId ? (
+        <MoveToInterviewDialog
+          open={moveToInterviewCandidate !== null}
+          onOpenChange={(open) => {
+            if (!open) setMoveToInterviewCandidate(null);
+          }}
+          candidate={moveToInterviewCandidate}
+          jobId={jobId}
+          onMoved={onCandidateMoved}
+        />
+      ) : null}
     </>
   );
 }
@@ -194,6 +221,8 @@ function KanbanCandidateCard({
   onDragStart,
   onDragEnd,
   onClick,
+  showMoveToInterview = false,
+  onMoveToInterview,
 }: {
   candidate: HiringCandidate;
   draggable: boolean;
@@ -201,6 +230,8 @@ function KanbanCandidateCard({
   onDragStart: () => void;
   onDragEnd: () => void;
   onClick: () => void;
+  showMoveToInterview?: boolean;
+  onMoveToInterview?: () => void;
 }) {
   const stage = getCandidateStage(candidate);
   const suppressClickRef = useRef(false);
@@ -240,8 +271,9 @@ function KanbanCandidateCard({
       )}
       aria-label={`View ${candidate.name}, ${stage}`}
     >
-      <div className="flex items-start gap-2">
-        {draggable ? (
+      <div className={cn("flex flex-col", showMoveToInterview && "min-h-[148px]")}>
+        <div className="flex items-start gap-2">
+          {draggable ? (
           <GripVertical
             className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted opacity-0 transition-opacity group-hover:opacity-100"
             strokeWidth={1.5}
@@ -266,6 +298,22 @@ function KanbanCandidateCard({
           </div>
           <p className="mt-2 text-[10px] text-muted">{candidate.recruiterOwner}</p>
         </div>
+        </div>
+        {showMoveToInterview ? (
+          <div className="mt-auto flex justify-center pt-3">
+            <Button
+              type="button"
+              size="sm"
+              className="h-8 w-full max-w-[200px] rounded-[8px] bg-accent px-3 text-[11px] font-medium text-white hover:bg-[rgb(var(--accent-hover-rgb))] focus-visible:ring-accent/30"
+              onClick={(e) => {
+                e.stopPropagation();
+                onMoveToInterview?.();
+              }}
+            >
+              Move to Interview
+            </Button>
+          </div>
+        ) : null}
       </div>
     </div>
   );

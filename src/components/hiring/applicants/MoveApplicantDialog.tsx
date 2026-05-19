@@ -88,20 +88,20 @@ export function MoveApplicantDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
         overlayClassName="z-[220]"
-        className="z-[220] max-h-[min(90dvh,640px)] max-w-[520px] gap-0 overflow-hidden p-0"
+        className="z-[220] flex max-h-[min(90dvh,640px)] w-[calc(100vw-2rem)] max-w-[520px] flex-col gap-0 overflow-hidden p-0"
       >
         {step === "select" ? (
           <>
-            <DialogHeader className="border-b border-[rgba(15,23,42,0.06)] px-5 pb-4 pt-5 sm:px-6">
+            <DialogHeader className="shrink-0 border-b border-[rgba(15,23,42,0.06)] px-5 pb-4 pt-5 sm:px-6">
               <DialogTitle className="text-[1.0625rem] font-semibold tracking-[-0.02em]">
-                Move applicant to another job
+                Move applicant
               </DialogTitle>
               <DialogDescription className="text-[13px] leading-relaxed text-text-secondary/90">
-                Transfer this applicant from the current role into another active job pipeline.
+                Move this applicant directly to another active job pipeline.
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4 px-5 py-4 sm:px-6">
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4 sm:px-6">
               <div className="rounded-[12px] border border-[rgba(15,23,42,0.06)] bg-[#FAFAFB] px-3.5 py-3 dark:border-white/[0.06] dark:bg-white/[0.03]">
                 <p className="text-[14px] font-semibold tracking-[-0.02em] text-text">{candidate.name}</p>
                 <dl className="mt-2 space-y-1 text-[12px] text-text-secondary">
@@ -184,7 +184,7 @@ export function MoveApplicantDialog({
               </ul>
             </div>
 
-            <DialogFooter className="border-t border-[rgba(15,23,42,0.06)] px-5 py-4 sm:px-6">
+            <DialogFooter className="mt-0 shrink-0 border-t border-[rgba(15,23,42,0.06)] px-5 py-4 sm:px-6 sm:flex-row sm:justify-end">
               <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
                 Cancel
               </Button>
@@ -195,7 +195,7 @@ export function MoveApplicantDialog({
           </>
         ) : (
           <>
-            <DialogHeader className="border-b border-[rgba(15,23,42,0.06)] px-5 pb-4 pt-5 sm:px-6">
+            <DialogHeader className="shrink-0 border-b border-[rgba(15,23,42,0.06)] px-5 pb-4 pt-5 sm:px-6">
               <DialogTitle className="text-[1.0625rem] font-semibold tracking-[-0.02em]">
                 Confirm applicant move
               </DialogTitle>
@@ -206,7 +206,7 @@ export function MoveApplicantDialog({
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4 px-5 py-4 sm:px-6">
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4 sm:px-6">
               <div className="rounded-[12px] border border-[rgba(15,23,42,0.06)] bg-white p-4 dark:border-white/[0.06] dark:bg-surface">
                 <div className="flex items-center gap-3">
                   <div className="min-w-0 flex-1">
@@ -227,7 +227,7 @@ export function MoveApplicantDialog({
               </p>
             </div>
 
-            <DialogFooter className="border-t border-[rgba(15,23,42,0.06)] px-5 py-4 sm:px-6">
+            <DialogFooter className="mt-0 shrink-0 border-t border-[rgba(15,23,42,0.06)] px-5 py-4 sm:px-6 sm:flex-row sm:justify-end">
               <Button type="button" variant="outline" onClick={() => setStep("select")} disabled={submitting}>
                 Back
               </Button>

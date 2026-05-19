@@ -47,7 +47,7 @@ import { cn } from "@/lib/utils";
 import type { HiringCandidate, HiringJob } from "@/lib/hiring/types";
 import { EmailFeed } from "./EmailFeed";
 import { getCandidateEditProfile, type CandidateEditProfile } from "@/lib/hiring/candidateProfile";
-import { moveCandidateToStage } from "@/lib/hiring/mockData";
+import { getCandidateById, moveCandidateToStage } from "@/lib/hiring/mockData";
 import {
   displayCandidateName,
   resumeDisplayStatus,
@@ -58,6 +58,14 @@ import { CandidateReportProfile } from "./CandidateReportProfile";
 import { CandidateReportFeedback } from "./CandidateReportFeedback";
 import { CandidateInterviewsTab } from "./CandidateInterviewsTab";
 import { CandidateTimelineTab } from "./CandidateTimelineTab";
+import { CandidateAssessmentReport } from "./CandidateAssessmentReport";
+import { DirectoryViewSwitcher } from "../directories/DirectoryViewSwitcher";
+import {
+  getCandidateReportAvailability,
+  SHELL_MODE_LABELS,
+  shellModeToInitialTab,
+  type CandidateReportShellMode,
+} from "@/lib/hiring/candidateReportModes";
 import {
   dashboardLabel,
   dashboardPanelInteractive,
@@ -70,9 +78,15 @@ import { HiringHeroTexture } from "../HiringHeroTexture";
 import { AddTagsDialog } from "./AddTagsDialog";
 import { EditCandidateDialog } from "./EditCandidateDialog";
 import { MoveApplicantDialog } from "./MoveApplicantDialog";
+import { RequestApplicantTransferDialog } from "./RequestApplicantTransferDialog";
 import { RejectApplicantDialog } from "./RejectApplicantDialog";
 import { useRole } from "@/context/RoleContext";
 import { canScheduleInterview } from "@/lib/hiring/feedbackPermissions";
+import {
+  canDirectMoveApplicant,
+  canRequestApplicantTransfer,
+  canUseMoveApplicantAction,
+} from "@/lib/hiring/moveApplicantPermissions";
 import { CandidateReportInterviewDialogs } from "./CandidateReportInterviewDialogs";
 import { useCandidateInterviewScheduling } from "./useCandidateInterviewScheduling";
 
@@ -93,7 +107,14 @@ const REPORT_TABS = [
   ["emails", "Emails"],
   ["interviews", "Interviews"],
   ["timeline", "Timeline"],
+  ["assessment", "Assessment"],
 ] as const;
+
+const TABS_BY_SHELL: Record<CandidateReportShellMode, Array<(typeof REPORT_TABS)[number][0]>> = {
+  overview: ["overview", "profile", "emails", "timeline"],
+  assessment: ["assessment"],
+  interview: ["feedback", "interviews", "timeline"],
+};
 
 /** Dashboard hero — contained card, aligned to report column */
 const reportHeroShell = cn(
@@ -148,6 +169,7 @@ function CandidateReportHero({
   onMoveToStage,
   onRejectApplicant,
   canSchedule,
+  canMoveApplicant,
   onScheduleInterview,
 }: {
   candidate: HiringCandidate;
@@ -156,6 +178,7 @@ function CandidateReportHero({
   initials: string;
   onClose: () => void;
   onMoveApplicant: () => void;
+  canMoveApplicant: boolean;
   onEditCandidate: () => void;
   onAddTags: () => void;
   onMoveToStage: (stage: HiringStageName, substage?: string) => void;
@@ -230,10 +253,12 @@ function CandidateReportHero({
           </div>
 
           <div className="flex flex-wrap items-center gap-2 lg:shrink-0 lg:justify-end">
-            <Button variant="outline" size="sm" className={heroActionBtn} onClick={onMoveApplicant}>
-              <MoveRight className="h-4 w-4" strokeWidth={1.5} />
-              Move Applicant
-            </Button>
+            {canMoveApplicant ? (
+              <Button variant="outline" size="sm" className={heroActionBtn} onClick={onMoveApplicant}>
+                <MoveRight className="h-4 w-4" strokeWidth={1.5} />
+                Move Applicant
+              </Button>
+            ) : null}
             {canSchedule ? (
               <Button variant="outline" size="sm" className={heroActionBtn} onClick={onScheduleInterview}>
                 <Calendar className="h-4 w-4" strokeWidth={1.5} />
@@ -277,7 +302,7 @@ function CandidateReportHero({
                 {stage !== "Hired & Offers" ? (
                   <DropdownMenuItem
                     className={reportMenuItem}
-                    onSelect={() => onMoveToStage("Hired & Offers", "Offer Draft")}
+                    onSelect={() => onMoveToStage("Hired & Offers", "Offer Sent")}
                   >
                     <ArrowRight className="h-3.5 w-3.5 shrink-0 opacity-55" strokeWidth={1.5} />
                     Move to Hired & Offers
@@ -318,6 +343,7 @@ export function CandidateReportDialog({
   open,
   onOpenChange,
   initialTab = "overview",
+  reportScope = "full",
   onApplicantMoved,
   onCandidateUpdated,
 }: {
@@ -326,23 +352,51 @@ export function CandidateReportDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialTab?: string;
+  reportScope?: "auto" | "full";
   onApplicantMoved?: () => void;
   onCandidateUpdated?: (candidate: HiringCandidate) => void;
 }) {
   const [moveOpen, setMoveOpen] = useState(false);
+  const [transferRequestOpen, setTransferRequestOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [activeTab, setActiveTab] = useState(initialTab);
+  const [shellMode, setShellMode] = useState<CandidateReportShellMode>("overview");
   const [liveCandidate, setLiveCandidate] = useState<HiringCandidate | null>(candidate);
   const editReturnFocusRef = useRef<HTMLElement | null>(null);
   const { selectedRole } = useRole();
   const canSchedule = canScheduleInterview(selectedRole);
+  const canMoveApplicant = canUseMoveApplicantAction(selectedRole);
+  const canDirectMove = canDirectMoveApplicant(selectedRole);
+  const canRequestTransfer = canRequestApplicantTransfer(selectedRole);
+
+  const reportAvailability = useMemo(
+    () => (liveCandidate ? getCandidateReportAvailability(liveCandidate) : null),
+    [liveCandidate],
+  );
+
+  const useShellModes = reportScope === "auto" && reportAvailability && reportAvailability.shellModes.length > 1;
+
+  const visibleReportTabs = useMemo(() => {
+    if (reportScope === "full") return REPORT_TABS;
+    const allowed = TABS_BY_SHELL[shellMode];
+    return REPORT_TABS.filter(([id]) => allowed.includes(id));
+  }, [shellMode, reportScope]);
 
   useEffect(() => {
     setLiveCandidate(candidate);
-    setActiveTab(initialTab);
-  }, [candidate, initialTab]);
+    if (!candidate) return;
+    if (reportScope === "full") {
+      setShellMode("overview");
+      setActiveTab(initialTab);
+      return;
+    }
+    const availability = getCandidateReportAvailability(candidate);
+    const nextShell = availability.defaultShellMode;
+    setShellMode(nextShell);
+    setActiveTab(shellModeToInitialTab(nextShell));
+  }, [candidate, initialTab, reportScope]);
 
   const profile = useMemo(
     () => (liveCandidate ? getCandidateEditProfile(liveCandidate, job) : null),
@@ -437,7 +491,11 @@ export function CandidateReportDialog({
                     profile={profile}
                     initials={initials}
                   onClose={() => onOpenChange(false)}
-                  onMoveApplicant={() => setMoveOpen(true)}
+                  onMoveApplicant={() => {
+                    if (canDirectMove) setMoveOpen(true);
+                    else if (canRequestTransfer) setTransferRequestOpen(true);
+                  }}
+                  canMoveApplicant={canMoveApplicant}
                   onEditCandidate={() => {
                     editReturnFocusRef.current = document.activeElement as HTMLElement;
                     setEditOpen(true);
@@ -457,11 +515,25 @@ export function CandidateReportDialog({
                   className={cn(
                     REPORT_COLUMN,
                     REPORT_PAD_X,
-                    "sticky top-0 z-10 shrink-0 border-b border-[rgba(15,23,42,0.06)] bg-white/95 backdrop-blur-md dark:border-white/[0.06] dark:bg-surface/95",
+                    "sticky top-0 z-10 shrink-0 space-y-3 border-b border-[rgba(15,23,42,0.06)] bg-white/95 py-2 backdrop-blur-md dark:border-white/[0.06] dark:bg-surface/95",
                   )}
                 >
+                  {useShellModes && reportAvailability ? (
+                    <DirectoryViewSwitcher
+                      value={shellMode}
+                      onChange={(mode) => {
+                        setShellMode(mode);
+                        setActiveTab(shellModeToInitialTab(mode));
+                      }}
+                      options={reportAvailability.shellModes.map((mode) => ({
+                        value: mode,
+                        label: SHELL_MODE_LABELS[mode],
+                      }))}
+                      className="w-full max-w-full sm:w-auto"
+                    />
+                  ) : null}
                   <TabsList className="h-auto w-full justify-start gap-0 border-0 bg-transparent p-0">
-                    {REPORT_TABS.map(([id, label]) => (
+                    {visibleReportTabs.map(([id, label]) => (
                       <TabsTrigger key={id} value={id} className="rounded-none">
                         {label}
                       </TabsTrigger>
@@ -515,6 +587,10 @@ export function CandidateReportDialog({
                   <TabsContent value="timeline" className="mt-0 min-h-0 focus-visible:ring-0">
                     <CandidateTimelineTab candidate={liveCandidate} />
                   </TabsContent>
+
+                  <TabsContent value="assessment" className="mt-0 min-h-0 focus-visible:ring-0">
+                    <CandidateAssessmentReport candidate={liveCandidate} job={job} />
+                  </TabsContent>
                 </div>
               </Tabs>
             </DialogPanel>
@@ -522,16 +598,31 @@ export function CandidateReportDialog({
         </DialogPortal>
       </Dialog>
 
-      <MoveApplicantDialog
-        open={moveOpen}
-        onOpenChange={setMoveOpen}
-        candidate={liveCandidate}
-        currentJob={job}
-        onMoved={() => {
-          onApplicantMoved?.();
-          onOpenChange(false);
-        }}
-      />
+      {canDirectMove ? (
+        <MoveApplicantDialog
+          open={moveOpen}
+          onOpenChange={setMoveOpen}
+          candidate={liveCandidate}
+          currentJob={job}
+          onMoved={() => {
+            onApplicantMoved?.();
+            onOpenChange(false);
+          }}
+        />
+      ) : null}
+
+      {canRequestTransfer ? (
+        <RequestApplicantTransferDialog
+          open={transferRequestOpen}
+          onOpenChange={setTransferRequestOpen}
+          candidate={liveCandidate}
+          currentJob={job}
+          onSubmitted={() => {
+            const refreshed = getCandidateById(liveCandidate.id);
+            if (refreshed) handleCandidateUpdated(refreshed);
+          }}
+        />
+      ) : null}
 
       <EditCandidateDialog
         open={editOpen}

@@ -11,7 +11,7 @@ export function AddJobDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreated?: () => void;
+  onCreated?: (jobId: string) => void;
   returnFocusRef?: React.RefObject<HTMLElement | null>;
 }) {
   const fallbackFocusRef = useRef<HTMLButtonElement>(null);

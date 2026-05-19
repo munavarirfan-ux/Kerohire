@@ -234,12 +234,8 @@ export const DEFAULT_HIRING_STAGES: HiringStage[] = [
     id: "offers",
     name: "Hire & Offers",
     substages: [
-      { id: "offer-draft", name: "Offer Draft" },
       { id: "offer-sent", name: "Offer Sent" },
-      { id: "offer-accepted", name: "Offer Accepted" },
-      { id: "offer-declined", name: "Offer Declined" },
       { id: "hired", name: "Hired" },
-      { id: "rejected", name: "Rejected" },
     ],
   },
 ];

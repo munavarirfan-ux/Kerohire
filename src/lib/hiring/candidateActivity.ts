@@ -13,6 +13,8 @@ export type CandidateActivityKind =
   | "notes_added"
   | "email_sent"
   | "candidate_moved"
+  | "transfer_request"
+  | "transfer_resolved"
   | "offer_sent"
   | "rejected"
   | "hired";
@@ -94,6 +96,9 @@ function inferKindFromLabel(label: string): CandidateActivityKind {
   if (l.includes("email")) return "email_sent";
   if (l.includes("note")) return "notes_added";
   if (l.includes("resume") || l.includes("parsed")) return "resume_parsed";
+  if (l.includes("transfer request submitted")) return "transfer_request";
+  if (l.includes("transfer approved") || l.includes("transfer request rejected")) return "transfer_resolved";
+  if (l.includes("applicant moved")) return "candidate_moved";
   if (l.includes("screen") || l.includes("stage") || l.includes("moved")) return "stage_changed";
   return "stage_changed";
 }
@@ -291,9 +296,16 @@ export function filterActivities(
   if (filter === "emails") return items.filter((i) => i.kind === "email_sent");
   if (filter === "stages") {
     return items.filter((i) =>
-      ["applied", "stage_changed", "candidate_moved", "offer_sent", "rejected", "hired"].includes(
-        i.kind,
-      ),
+      [
+        "applied",
+        "stage_changed",
+        "candidate_moved",
+        "transfer_request",
+        "transfer_resolved",
+        "offer_sent",
+        "rejected",
+        "hired",
+      ].includes(i.kind),
     );
   }
   return items.filter((i) => ["applied", "resume_parsed"].includes(i.kind));

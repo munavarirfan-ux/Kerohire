@@ -54,13 +54,7 @@ export const STAGE_SUBSTAGES: Record<HiringStageName, readonly string[]> = {
   Applied: APPLIED_SUBSTAGES,
   Screening: SCREENING_SUBSTAGES,
   Interviews: ["Technical Round 1", "Technical Round 2", "HR Round"],
-  "Hired & Offers": [
-    "Offer Draft",
-    "Offer Sent",
-    "Offer Accepted",
-    "Offer Declined",
-    "Hired",
-  ],
+  "Hired & Offers": ["Offer Sent", "Hired"],
   Rejected: ["Rejected"],
 };
 
@@ -197,6 +191,34 @@ export function applicantsStatsColumnId(candidate: HiringCandidate): "applied" |
     return "applied";
   }
   return "applied";
+}
+
+/** Shortlisted column on the Applicants Stats (Screening) board */
+export function isApplicantsStatsShortlisted(candidate: HiringCandidate): boolean {
+  return (
+    getCandidateStage(candidate) === "Screening" && applicantsStatsColumnId(candidate) === "shortlisted"
+  );
+}
+
+const LEGACY_OFFER_SENT_COLUMNS = new Set(["offer-draft", "offer-accepted", "offer-declined"]);
+
+/** Maps Hire & Offers candidates to the two-column board: offer-sent | hired */
+export function hireOffersKanbanColumnId(
+  candidate: HiringCandidate,
+): "offer-sent" | "hired" {
+  if (candidate.kanbanColumn === "hired" || candidate.currentSubstage === "Hired") {
+    return "hired";
+  }
+  if (candidate.kanbanColumn === "offer-sent" || candidate.currentSubstage === "Offer Sent") {
+    return "offer-sent";
+  }
+  if (candidate.kanbanColumn && LEGACY_OFFER_SENT_COLUMNS.has(candidate.kanbanColumn)) {
+    return "offer-sent";
+  }
+  const sub = candidate.currentSubstage?.toLowerCase() ?? "";
+  if (sub.includes("hired")) return "hired";
+  if (sub.includes("offer")) return "offer-sent";
+  return "offer-sent";
 }
 
 /** Enrich legacy mock rows with canonical stage / source fields */

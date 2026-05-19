@@ -14,7 +14,6 @@ const HIRING_DESIGN: NavGroupConfig = {
     { href: ROUTES.hiringJobs, label: "Jobs", icon: "briefcase" },
     { href: ROUTES.interviews, label: "Interviews", icon: "mic2" },
     { href: ROUTES.candidates, label: "Candidates", icon: "users" },
-    { href: ROUTES.jobPipeline("seed-job-1"), label: "Pipeline", icon: "waypoints" },
   ],
 };
 
